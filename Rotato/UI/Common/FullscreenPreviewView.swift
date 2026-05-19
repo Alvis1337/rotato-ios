@@ -1,0 +1,198 @@
+import SwiftUI
+import Photos
+
+struct FullscreenPreviewView: View {
+    let items: [WallpaperItem]
+    let initialIndex: Int
+    let onDismiss: () -> Void
+    var onSave: ((WallpaperItem) -> Void)? = nil  // save to collection
+
+    @State private var currentIndex: Int
+    @State private var showOverlay = true
+    @State private var dragOffset: CGFloat = 0
+    @State private var isDismissing = false
+    @State private var saveToast: String?
+
+    init(items: [WallpaperItem], initialIndex: Int = 0, onDismiss: @escaping () -> Void, onSave: ((WallpaperItem) -> Void)? = nil) {
+        self.items = items
+        self.initialIndex = initialIndex
+        self.onDismiss = onDismiss
+        self.onSave = onSave
+        _currentIndex = State(initialValue: initialIndex)
+    }
+
+    var current: WallpaperItem { items[currentIndex] }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            TabView(selection: $currentIndex) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { idx, item in
+                    ZoomableImageView(url: item.imageURL)
+                        .tag(idx)
+                        .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { showOverlay.toggle() } }
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .offset(y: dragOffset)
+            .opacity(Double(1.0 - abs(dragOffset) / 400.0).clamped(to: 0...1))
+            .gesture(swipeDownGesture)
+
+            if showOverlay {
+                overlayView
+                    .transition(.opacity)
+            }
+
+            if let toast = saveToast {
+                VStack {
+                    Spacer()
+                    Text(toast)
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .padding(.bottom, 100)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .allowsHitTesting(false)
+            }
+        }
+        .statusBarHidden(!showOverlay)
+    }
+
+    private var overlayView: some View {
+        VStack(spacing: 0) {
+            // Top bar
+            HStack {
+                Button { onDismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(10)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                Spacer()
+                if items.count > 1 {
+                    Text("\(currentIndex + 1) / \(items.count)")
+                        .font(.caption)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(.ultraThinMaterial, in: Capsule())
+                }
+                Spacer()
+                Text(current.sourceId.capitalized)
+                    .font(.caption2)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 60)
+
+            Spacer()
+
+            // Bottom bar
+            VStack(alignment: .leading, spacing: 12) {
+                // Tags
+                if !current.tags.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(current.tags.prefix(20), id: \.self) { tag in
+                                Text(tag)
+                                    .font(.caption2)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 8).padding(.vertical, 4)
+                                    .background(.ultraThinMaterial, in: Capsule())
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                }
+
+                // Resolution
+                if !current.resolution.isEmpty {
+                    Text(current.resolution)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 16)
+                }
+
+                // Action buttons
+                HStack(spacing: 20) {
+                    if let onSave {
+                        actionButton(icon: "bookmark", label: "Save") { onSave(current) }
+                    }
+                    actionButton(icon: "square.and.arrow.down", label: "Photos") { saveToPhotos() }
+                    actionButton(icon: "square.and.arrow.up", label: "Share") { share() }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 40)
+            }
+            .background(
+                LinearGradient(colors: [.clear, .black.opacity(0.7)],
+                               startPoint: .top, endPoint: .bottom)
+            )
+        }
+    }
+
+    private func actionButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 22))
+                    .foregroundStyle(.white)
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+        }
+    }
+
+    private var swipeDownGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                guard value.translation.height > 0 else { return }
+                dragOffset = value.translation.height
+            }
+            .onEnded { value in
+                if value.translation.height > 150 {
+                    withAnimation(.easeIn(duration: 0.2)) { dragOffset = 600 }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { onDismiss() }
+                } else {
+                    withAnimation(.spring) { dragOffset = 0 }
+                }
+            }
+    }
+
+    private func saveToPhotos() {
+        guard let url = current.imageURL as URL? else { return }
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard let img = UIImage(data: data) else { return }
+                try await PHPhotoLibrary.shared().performChanges {
+                    PHAssetChangeRequest.creationRequestForAsset(from: img)
+                }
+                await showToast("Saved to Photos")
+            } catch {
+                await showToast("Failed to save")
+            }
+        }
+    }
+
+    private func share() {
+        guard let url = current.imageURL as URL? else { return }
+        let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let vc = scene.windows.first?.rootViewController {
+            vc.present(av, animated: true)
+        }
+    }
+
+    @MainActor
+    private func showToast(_ message: String) {
+        withAnimation { saveToast = message }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation { saveToast = nil }
+        }
+    }
+}

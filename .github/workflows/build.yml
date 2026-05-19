@@ -1,0 +1,77 @@
+name: Build & Release iOS IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Set build number
+        run: |
+          BUILD=$(git rev-list --count HEAD)
+          xcrun agvtool new-version -all $BUILD
+          echo "BUILD_NUMBER=$BUILD" >> $GITHUB_ENV
+
+      - name: Build archive (unsigned)
+        run: |
+          xcodebuild archive \
+            -scheme Rotato \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/Rotato.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            2>&1 | tail -50
+
+      - name: Package unsigned IPA
+        run: |
+          APP="$RUNNER_TEMP/Rotato.xcarchive/Products/Applications/Rotato.app"
+          PAYLOAD="$RUNNER_TEMP/Payload"
+          mkdir -p "$PAYLOAD"
+          cp -r "$APP" "$PAYLOAD/Rotato.app"
+          cd "$RUNNER_TEMP"
+          zip -r Rotato-unsigned.ipa Payload/
+          echo "IPA=$RUNNER_TEMP/Rotato-unsigned.ipa" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-v1.0.${{ env.BUILD_NUMBER }}
+          name: "Rotato iOS v1.0.${{ env.BUILD_NUMBER }} (unsigned)"
+          body: |
+            ## Rotato iOS – unsigned build
+
+            Download `Rotato-unsigned.ipa` and sign it with your Apple Developer certificate.
+
+            ### Sideloading options
+            - **Sideloadly** – drag & drop IPA, sign with your Apple ID
+            - **AltStore** – use AltServer to install signed IPA
+            - **Xcode** – `ios-deploy` or Apple Configurator 2 after signing with `codesign`
+
+            Built from commit ${{ github.sha }}
+          files: ${{ env.IPA }}
+          draft: false
+          prerelease: false
