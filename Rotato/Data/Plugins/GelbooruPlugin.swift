@@ -10,7 +10,7 @@ struct GelbooruPlugin: SourcePlugin {
     func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem] {
         var comps = URLComponents(string: "https://gelbooru.com/index.php")!
         let tags = buildTags(query: query, configTags: config.tags, nsfw: nsfw)
-        let items: [URLQueryItem] = [
+        var items: [URLQueryItem] = [
             .init(name: "page", value: "dapi"),
             .init(name: "s", value: "post"),
             .init(name: "q", value: "index"),

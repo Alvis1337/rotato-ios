@@ -130,7 +130,7 @@ struct DiscoverView: View {
             Image(systemName: "photo.badge.exclamationmark").font(.system(size: 48)).foregroundStyle(.secondary)
             Text("No wallpapers found").font(.title3.weight(.semibold)).foregroundStyle(.secondary)
             if !vm.searchQuery.isEmpty {
-                Text("Searching: "\(vm.searchQuery)"").font(.caption).foregroundStyle(.tertiary)
+                Text("Searching: \"\(vm.searchQuery)\"").font(.caption).foregroundStyle(.tertiary)
                 Button("Clear Search") { vm.clearSearch() }.buttonStyle(.bordered)
             }
             NavigationLink("Configure Sources") {

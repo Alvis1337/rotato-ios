@@ -67,8 +67,6 @@ private struct SourceRow: View {
     @State private var expanded = false
 
     var body: some View {
-        let config = settings.config(for: plugin.id)
-
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Image(systemName: plugin.sfSymbol).foregroundStyle(.secondary).frame(width: 28)
