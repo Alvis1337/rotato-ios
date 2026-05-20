@@ -97,7 +97,7 @@ struct FullscreenPreviewView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             ForEach(current.tags.prefix(20), id: \.self) { tag in
-                                Text(tag)
+                                Text(tag.replacingOccurrences(of: "_", with: " "))
                                     .font(.caption2)
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 8).padding(.vertical, 4)
@@ -108,27 +108,38 @@ struct FullscreenPreviewView: View {
                     }
                 }
 
-                // Resolution
-                if !current.resolution.isEmpty {
-                    Text(current.resolution)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
+                // Resolution + rating badge
+                HStack(spacing: 8) {
+                    if !current.resolution.isEmpty {
+                        Text(current.resolution)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(.horizontal, 6).padding(.vertical, 3)
+                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 4))
+                    }
+                    if current.isNSFW {
+                        Text("NSFW")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6).padding(.vertical, 3)
+                            .background(Color.red.opacity(0.8), in: RoundedRectangle(cornerRadius: 4))
+                    }
                 }
+                .padding(.horizontal, 16)
 
                 // Action buttons
                 HStack(spacing: 20) {
                     if let onSave {
                         actionButton(icon: "bookmark", label: "Save") { onSave(current) }
                     }
-                    actionButton(icon: "square.and.arrow.down", label: "Photos") { saveToPhotos() }
+                    actionButton(icon: "square.and.arrow.down", label: "Save to Photos") { saveToPhotos() }
                     actionButton(icon: "square.and.arrow.up", label: "Share") { share() }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 40)
             }
             .background(
-                LinearGradient(colors: [.clear, .black.opacity(0.7)],
+                LinearGradient(colors: [.clear, .black.opacity(0.75)],
                                startPoint: .top, endPoint: .bottom)
             )
         }
@@ -172,7 +183,7 @@ struct FullscreenPreviewView: View {
                 try await PHPhotoLibrary.shared().performChanges {
                     PHAssetChangeRequest.creationRequestForAsset(from: img)
                 }
-                await showToast("Saved to Photos")
+                await showToast("Saved to Photos — open Photos to set as wallpaper")
             } catch {
                 await showToast("Failed to save")
             }

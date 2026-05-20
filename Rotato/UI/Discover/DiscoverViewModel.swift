@@ -13,7 +13,13 @@ final class DiscoverViewModel {
     var hasMore = true
     var noResults = false
 
+    /// Source IDs the user has toggled ON in the chip row.
+    /// Empty = all enabled sources are active.
+    var activeSourceIds: Set<String> = []
+
     private let settings: AppSettings
+    /// MAL title injected for the current load session (when searchQuery is empty).
+    private(set) var currentMalTag: String = ""
 
     init(settings: AppSettings) {
         self.settings = settings
@@ -26,6 +32,13 @@ final class DiscoverViewModel {
         noResults = false
         currentPage = 0
         hasMore = true
+
+        // Inject a random MAL anime title when the user hasn't typed a query
+        if searchQuery.isEmpty && !settings.malAnimeList.isEmpty {
+            currentMalTag = settings.malAnimeList.randomElement() ?? ""
+        } else {
+            currentMalTag = ""
+        }
 
         do {
             let results = try await fetchFromEnabledSources(page: 0)
@@ -66,15 +79,40 @@ final class DiscoverViewModel {
         Task { await load() }
     }
 
+    /// Toggle a source chip. If we go from N active → 0 active, treat as "all active" again.
+    func toggleSource(_ id: String) {
+        let wasEmpty = activeSourceIds.isEmpty
+        let enabledIds = Set(PluginRegistry.all.filter { settings.config(for: $0.id).enabled }.map { $0.id })
+
+        if wasEmpty {
+            // All were active — deactivate all except the tapped one
+            activeSourceIds = enabledIds.subtracting([id])
+        } else {
+            if activeSourceIds.contains(id) {
+                activeSourceIds.remove(id)
+                if activeSourceIds.isEmpty { activeSourceIds = [] }  // back to "all"
+            } else {
+                activeSourceIds.insert(id)
+                // If all enabled sources are now active, collapse back to empty (= all)
+                if activeSourceIds == enabledIds { activeSourceIds = [] }
+            }
+        }
+        Task { await load() }
+    }
+
     // MARK: - Private
 
     private func fetchFromEnabledSources(page: Int) async throws -> [WallpaperItem] {
         let configs = settings.sourceConfigs
         let nsfw = settings.nsfwEnabled
-        let query = searchQuery  // capture off actor before spawning tasks
+        let userQuery = searchQuery
+        let malTag = currentMalTag
+        // Use MAL-injected tag when no user query, for plugins that support search
+        let effectiveQuery = userQuery.isEmpty ? malTag : userQuery
 
         let enabledPlugins = PluginRegistry.all.filter { plugin in
-            configs[plugin.id]?.enabled == true
+            configs[plugin.id]?.enabled == true &&
+            (activeSourceIds.isEmpty || activeSourceIds.contains(plugin.id))
         }
 
         guard !enabledPlugins.isEmpty else { return [] }
@@ -82,9 +120,10 @@ final class DiscoverViewModel {
         return try await withThrowingTaskGroup(of: [WallpaperItem].self) { group in
             for plugin in enabledPlugins {
                 let config = configs[plugin.id] ?? SourceConfig()
+                let q = plugin.supportsSearch ? effectiveQuery : ""
                 group.addTask {
                     (try? await plugin.fetch(
-                        query: query,
+                        query: q,
                         page: page,
                         config: config,
                         nsfw: nsfw

@@ -92,6 +92,26 @@ struct DiscoverView: View {
                     .onAppear { searchFocused = true }
                 }
 
+                // Source filter chips
+                sourceChips(vm: vm)
+
+                // MAL tag banner
+                if vm.searchQuery.isEmpty, !vm.items.isEmpty, !vm.currentMalTag.isEmpty {
+                    let mal = vm.currentMalTag
+                    HStack(spacing: 6) {
+                        Image(systemName: "list.star")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text("MAL: \(mal)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 4)
+                }
+
                 LazyVGrid(columns: columns, spacing: 2) {
                     ForEach(Array(vm.items.enumerated()), id: \.element.id) { idx, item in
                         WallpaperThumb(item: item)
@@ -112,6 +132,34 @@ struct DiscoverView: View {
                 }
             }
             .refreshable { await vm.load() }
+        }
+    }
+
+    @ViewBuilder
+    private func sourceChips(vm: DiscoverViewModel) -> some View {
+        let enabledPlugins = PluginRegistry.all.filter { settings.config(for: $0.id).enabled }
+        if enabledPlugins.count > 1 {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(enabledPlugins, id: \.id) { plugin in
+                        let isActive = vm.activeSourceIds.isEmpty || vm.activeSourceIds.contains(plugin.id)
+                        Button {
+                            vm.toggleSource(plugin.id)
+                        } label: {
+                            Label(plugin.displayName, systemImage: plugin.sfSymbol)
+                                .font(.caption.weight(.medium))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(isActive ? Color.accentColor : Color(.systemFill), in: Capsule())
+                                .foregroundStyle(isActive ? .white : .primary)
+                        }
+                        .buttonStyle(.plain)
+                        .animation(.easeInOut(duration: 0.15), value: isActive)
+                    }
+                }
+                .padding(.horizontal, 12)
+            }
+            .padding(.vertical, 6)
         }
     }
 
@@ -163,11 +211,46 @@ struct DiscoverView: View {
 
 private struct WallpaperThumb: View {
     let item: WallpaperItem
+    @Environment(AppSettings.self) private var settings
 
     var body: some View {
-        CachedImageView(url: item.thumbnailURL, contentMode: .fill)
-            .aspectRatio(1, contentMode: .fill)
-            .clipped()
+        ZStack(alignment: .bottomTrailing) {
+            CachedImageView(url: item.thumbnailURL, contentMode: .fill)
+                .aspectRatio(1, contentMode: .fill)
+                .clipped()
+                .blur(radius: item.isNSFW && !settings.nsfwEnabled ? 18 : 0)
+
+            if item.isNSFW && !settings.nsfwEnabled {
+                Image(systemName: "eye.slash.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .shadow(radius: 2)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
+            // Source badge
+            Text(sourceLabel(for: item.sourceId))
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 3))
+                .padding(4)
+        }
+    }
+
+    private func sourceLabel(for id: String) -> String {
+        switch id {
+        case "GELBOORU": return "GEL"
+        case "DANBOORU": return "DAN"
+        case "WALLHAVEN": return "WLH"
+        case "REDDIT": return "RDT"
+        case "RULE34": return "R34"
+        case "ZEROCHAN": return "ZRC"
+        case "ANIMEPICTURES": return "ANP"
+        case "KONACHAN": return "KON"
+        default: return String(id.prefix(3))
+        }
     }
 }
 
