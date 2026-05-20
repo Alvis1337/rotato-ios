@@ -35,16 +35,15 @@ struct MalSettingsView: View {
 
             if !settings.malUsername.isEmpty {
                 Section("List Filters") {
+                    @Bindable var settings = settings
                     Stepper("Min Score: \(settings.malMinScore)",
-                            value: Binding(
-                                get: { settings.malMinScore },
-                                set: { settings.malMinScore = $0 }
-                            ),
+                            value: $settings.malMinScore,
                             in: 0...10)
 
+                    let currentStatuses = settings.malFilterStatuses
                     ForEach(allStatuses, id: \.self) { status in
                         Toggle(displayName(for: status), isOn: Binding(
-                            get: { settings.malFilterStatuses.contains(status) },
+                            get: { currentStatuses.contains(status) },
                             set: { enabled in
                                 var s = settings.malFilterStatuses
                                 if enabled { s.insert(status) } else { s.remove(status) }

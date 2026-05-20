@@ -67,13 +67,15 @@ private struct SourceRow: View {
     @State private var expanded = false
 
     var body: some View {
+        // Explicit read so @Observable tracks sourceConfigs changes for this view
+        let currentConfig = settings.config(for: plugin.id)
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Image(systemName: plugin.sfSymbol).foregroundStyle(.secondary).frame(width: 28)
                 Text(plugin.displayName)
                 Spacer()
                 Toggle("", isOn: Binding(
-                    get: { settings.config(for: plugin.id).enabled },
+                    get: { currentConfig.enabled },
                     set: { var c = settings.config(for: plugin.id); c.enabled = $0; settings.setConfig(c, for: plugin.id) }
                 ))
                 .labelsHidden()

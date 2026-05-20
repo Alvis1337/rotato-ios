@@ -4,20 +4,15 @@ struct SettingsView: View {
     @Environment(AppSettings.self) private var settings
 
     var body: some View {
+        @Bindable var settings = settings
         NavigationStack {
             Form {
                 Section("Content") {
-                    Toggle("NSFW Content", isOn: Binding(
-                        get: { settings.nsfwEnabled },
-                        set: { settings.nsfwEnabled = $0 }
-                    ))
+                    Toggle("NSFW Content", isOn: $settings.nsfwEnabled)
                 }
 
                 Section("Discover") {
-                    Toggle("Wi-Fi Only", isOn: Binding(
-                        get: { settings.wifiOnlyDiscover },
-                        set: { settings.wifiOnlyDiscover = $0 }
-                    ))
+                    Toggle("Wi-Fi Only", isOn: $settings.wifiOnlyDiscover)
                     Text("When enabled, auto-loading more results is paused on mobile data. You can still pull to refresh manually.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
