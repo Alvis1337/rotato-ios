@@ -7,6 +7,8 @@ struct LibraryView: View {
     @State private var showNewCollectionAlert = false
     @State private var newCollectionName = ""
     @State private var collectionToDelete: SavedCollection?
+    @State private var collectionToRename: SavedCollection?
+    @State private var renameText = ""
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -30,6 +32,12 @@ struct LibraryView: View {
                                     CollectionCard(collection: col)
                                 }
                                 .contextMenu {
+                                    Button {
+                                        renameText = col.name
+                                        collectionToRename = col
+                                    } label: {
+                                        Label("Rename", systemImage: "pencil")
+                                    }
                                     Button(role: .destructive) {
                                         collectionToDelete = col
                                     } label: {
@@ -59,6 +67,20 @@ struct LibraryView: View {
                     newCollectionName = ""
                 }
                 Button("Cancel", role: .cancel) { newCollectionName = "" }
+            }
+            .alert("Rename Collection", isPresented: Binding(
+                get: { collectionToRename != nil },
+                set: { if !$0 { collectionToRename = nil } }
+            )) {
+                TextField("Name", text: $renameText)
+                Button("Rename") {
+                    if let col = collectionToRename {
+                        col.name = renameText.trimmingCharacters(in: .whitespaces).isEmpty ? col.name : renameText.trimmingCharacters(in: .whitespaces)
+                        try? modelContext.save()
+                    }
+                    collectionToRename = nil
+                }
+                Button("Cancel", role: .cancel) { collectionToRename = nil }
             }
             .confirmationDialog(
                 "Delete \"\(collectionToDelete?.name ?? "")\"?",

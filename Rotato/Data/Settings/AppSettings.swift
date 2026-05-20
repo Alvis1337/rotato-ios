@@ -97,4 +97,11 @@ final class AppSettings {
         get { defaults.string(forKey: "mal_code_verifier") ?? "" }
         set { defaults.set(newValue, forKey: "mal_code_verifier") }
     }
+
+    // MARK: - Discover
+
+    var wifiOnlyDiscover: Bool {
+        get { defaults.bool(forKey: "wifi_only_discover") }
+        set { defaults.set(newValue, forKey: "wifi_only_discover") }
+    }
 }

@@ -128,7 +128,16 @@ struct DiscoverView: View {
                 }
 
                 if vm.isLoadingMore {
-                    ProgressView().padding()
+                    HStack(spacing: 10) {
+                        ProgressView().controlSize(.small)
+                        Text("Loading more…")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 12).padding(.vertical, 6)
                 }
             }
             .refreshable { await vm.load() }

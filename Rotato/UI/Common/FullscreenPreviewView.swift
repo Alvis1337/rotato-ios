@@ -192,10 +192,20 @@ struct FullscreenPreviewView: View {
 
     private func share() {
         guard let url = current.imageURL as URL? else { return }
-        let av = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let vc = scene.windows.first?.rootViewController {
-            vc.present(av, animated: true)
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                guard let img = UIImage(data: data) else { return }
+                await MainActor.run {
+                    let av = UIActivityViewController(activityItems: [img], applicationActivities: nil)
+                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                       let vc = scene.windows.first?.rootViewController {
+                        vc.present(av, animated: true)
+                    }
+                }
+            } catch {
+                await showToast("Failed to share")
+            }
         }
     }
 

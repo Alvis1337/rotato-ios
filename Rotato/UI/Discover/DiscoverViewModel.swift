@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import Observation
 
 @Observable
@@ -52,6 +53,8 @@ final class DiscoverViewModel {
 
     func loadMore() async {
         guard !isLoadingMore, hasMore, !items.isEmpty else { return }
+        // Respect wifi-only setting for auto-triggered loads
+        if settings.wifiOnlyDiscover, !(await isOnWiFi()) { return }
         isLoadingMore = true
         currentPage += 1
 
@@ -101,6 +104,20 @@ final class DiscoverViewModel {
     }
 
     // MARK: - Private
+
+    private func isOnWiFi() async -> Bool {
+        await withCheckedContinuation { continuation in
+            let monitor = NWPathMonitor(requiredInterfaceType: .wifi)
+            var resumed = false
+            monitor.pathUpdateHandler = { path in
+                guard !resumed else { return }
+                resumed = true
+                continuation.resume(returning: path.status == .satisfied)
+                monitor.cancel()
+            }
+            monitor.start(queue: DispatchQueue.global(qos: .utility))
+        }
+    }
 
     private func fetchFromEnabledSources(page: Int) async throws -> [WallpaperItem] {
         let configs = settings.sourceConfigs

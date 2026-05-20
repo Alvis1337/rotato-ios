@@ -13,6 +13,16 @@ struct SettingsView: View {
                     ))
                 }
 
+                Section("Discover") {
+                    Toggle("Wi-Fi Only", isOn: Binding(
+                        get: { settings.wifiOnlyDiscover },
+                        set: { settings.wifiOnlyDiscover = $0 }
+                    ))
+                    Text("When enabled, auto-loading more results is paused on mobile data. You can still pull to refresh manually.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("Sources") {
                     NavigationLink("Configure Sources") { SourceSettingsView() }
                 }
