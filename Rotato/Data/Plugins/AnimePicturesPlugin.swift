@@ -36,9 +36,11 @@ struct AnimePicturesPlugin: SourcePlugin {
     }
 
     private func mapPost(_ p: AnimePicturesPost) -> WallpaperItem? {
-        guard let imageURL = resolveImageURL(p), let thumbURL = resolvePreviewURL(p.small_preview)
-            ?? resolvePreviewURL(p.big_preview) ?? resolvePreviewURL(p.large_preview) ?? imageURL
-        else { return nil }
+        guard let imageURL = resolveImageURL(p) else { return nil }
+        let thumbURL = resolvePreviewURL(p.small_preview)
+            ?? resolvePreviewURL(p.big_preview)
+            ?? resolvePreviewURL(p.large_preview)
+            ?? imageURL
 
         return WallpaperItem(
             id: "ANIMEPICTURES_\(p.id)",

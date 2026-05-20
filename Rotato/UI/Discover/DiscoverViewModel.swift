@@ -108,14 +108,12 @@ final class DiscoverViewModel {
     private func isOnWiFi() async -> Bool {
         await withCheckedContinuation { continuation in
             let monitor = NWPathMonitor(requiredInterfaceType: .wifi)
-            var resumed = false
+            let queue = DispatchQueue(label: "com.rotato.wifi-check")
             monitor.pathUpdateHandler = { path in
-                guard !resumed else { return }
-                resumed = true
                 continuation.resume(returning: path.status == .satisfied)
                 monitor.cancel()
             }
-            monitor.start(queue: DispatchQueue.global(qos: .utility))
+            monitor.start(queue: queue)
         }
     }
 
