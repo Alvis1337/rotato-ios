@@ -5,6 +5,7 @@ struct CollectionDetailView: View {
     let collection: SavedCollection
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(AppSettings.self) private var settings
     @State private var entries: [SavedEntry] = []
     @State private var selectedEntry: SavedEntry?
     @State private var selectedIndex = 0
@@ -30,30 +31,46 @@ struct CollectionDetailView: View {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 2) {
                         ForEach(Array(entries.enumerated()), id: \.element.id) { idx, entry in
-                            CachedImageView(url: entry.thumbnailURL, contentMode: .fill)
-                                .aspectRatio(1, contentMode: .fill)
-                                .clipped()
-                                .overlay(alignment: .topTrailing) {
-                                    if editMode {
-                                        Image(systemName: selectedForDelete.contains(entry.id) ? "checkmark.circle.fill" : "circle")
-                                            .font(.system(size: 20))
-                                            .foregroundStyle(selectedForDelete.contains(entry.id) ? .blue : .white)
-                                            .shadow(radius: 2)
-                                            .padding(4)
-                                    }
+                            ZStack {
+                                CachedImageView(url: entry.thumbnailURL, contentMode: .fill)
+                                    .aspectRatio(1, contentMode: .fill)
+                                    .clipped()
+                                if entry.isNSFW && !settings.nsfwEnabled {
+                                    Rectangle()
+                                        .fill(.ultraThinMaterial)
+                                    Image(systemName: "eye.slash.fill")
+                                        .foregroundStyle(.white)
+                                        .font(.title3)
                                 }
-                                .onTapGesture {
-                                    if editMode {
-                                        if selectedForDelete.contains(entry.id) {
-                                            selectedForDelete.remove(entry.id)
-                                        } else {
-                                            selectedForDelete.insert(entry.id)
+                                if editMode {
+                                    Color.black.opacity(0.25)
+                                    VStack {
+                                        HStack {
+                                            Spacer()
+                                            Image(systemName: selectedForDelete.contains(entry.id) ? "checkmark.circle.fill" : "circle")
+                                                .font(.system(size: 20))
+                                                .foregroundStyle(selectedForDelete.contains(entry.id) ? .blue : .white)
+                                                .shadow(radius: 2)
+                                                .padding(4)
                                         }
-                                    } else {
-                                        selectedIndex = idx
-                                        selectedEntry = entry
+                                        Spacer()
                                     }
                                 }
+                            }
+                            .aspectRatio(1, contentMode: .fit)
+                            .clipped()
+                            .onTapGesture {
+                                if editMode {
+                                    if selectedForDelete.contains(entry.id) {
+                                        selectedForDelete.remove(entry.id)
+                                    } else {
+                                        selectedForDelete.insert(entry.id)
+                                    }
+                                } else {
+                                    selectedIndex = idx
+                                    selectedEntry = entry
+                                }
+                            }
                         }
                     }
                 }

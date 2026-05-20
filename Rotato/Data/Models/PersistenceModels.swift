@@ -48,4 +48,8 @@ final class SavedEntry {
     var resolution: String {
         width > 0 && height > 0 ? "\(width)×\(height)" : ""
     }
+
+    var isNSFW: Bool {
+        rating == "explicit" || rating == "e" || rating == "questionable" || rating == "q"
+    }
 }
