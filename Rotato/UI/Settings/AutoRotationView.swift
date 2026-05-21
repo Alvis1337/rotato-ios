@@ -22,7 +22,6 @@ struct AutoRotationView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.purple)
                 }
                 .padding(.vertical, 4)
                 .sheet(isPresented: $isShareSheetPresented) {
@@ -40,7 +39,7 @@ struct AutoRotationView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "wand.and.sparkles")
                             .font(.largeTitle)
-                            .foregroundStyle(.purple)
+                            .foregroundStyle(.accentColor)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Automatic Rotation")
                                 .font(.headline)
@@ -121,11 +120,11 @@ private struct StepRow: View {
         HStack(alignment: .top, spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Color.purple.opacity(0.15))
+                    .fill(Color.accentColor.opacity(0.15))
                     .frame(width: 36, height: 36)
                 Text("\(number)")
                     .font(.system(.headline, design: .rounded).bold())
-                    .foregroundStyle(.purple)
+                    .foregroundStyle(.accentColor)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Label(title, systemImage: icon)

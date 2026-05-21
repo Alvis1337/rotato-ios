@@ -56,10 +56,10 @@ struct SettingsView: View {
                 Section("About") {
                     NavigationLink("What's New") { WhatIsNewView() }
                     NavigationLink("Open Source Licenses") { LicensesView() }
-                    Link("Privacy Policy", destination: URL(string: "https://alvis1337.github.io/rotato/privacy/")!)
-                    Link("Terms of Service", destination: URL(string: "https://alvis1337.github.io/rotato/terms/")!)
-                    Link("Website", destination: URL(string: "https://alvis1337.github.io/rotato/")!)
-                    Link("GitHub – Rotato iOS", destination: URL(string: "https://github.com/Alvis1337/rotato-ios")!)
+                    Link("Privacy Policy", destination: URL.safe("https://alvis1337.github.io/rotato/privacy/"))
+                    Link("Terms of Service", destination: URL.safe("https://alvis1337.github.io/rotato/terms/"))
+                    Link("Website", destination: URL.safe("https://alvis1337.github.io/rotato/"))
+                    Link("GitHub – Rotato iOS", destination: URL.safe("https://github.com/Alvis1337/rotato-ios"))
                     LabeledContent("Version", value: appVersion)
                     LabeledContent("Build", value: buildNumber)
                 }
@@ -79,5 +79,16 @@ struct SettingsView: View {
                 Text("This will remove all viewed wallpapers from your history and clear all star ratings.")
             }
         }
+    }
+}
+
+private extension URL {
+    /// Convenience initialiser that never crashes on a compile-time known safe string.
+    static func safe(_ string: String) -> URL {
+        guard let url = URL(string: string) else {
+            assertionFailure("Invalid URL literal: \(string)")
+            return URL(string: "https://")!
+        }
+        return url
     }
 }

@@ -15,6 +15,7 @@ struct FullscreenPreviewView: View {
     @State private var isDismissing = false
     @State private var saveToast: String?
     @State private var showSaveSheet = false
+    @State private var shareImage: UIImage?
 
     init(items: [WallpaperItem], initialIndex: Int = 0, onDismiss: @escaping () -> Void) {
         self.items = items
@@ -63,6 +64,9 @@ struct FullscreenPreviewView: View {
         .onChange(of: currentIndex) { settings.addToHistory(current) }
         .sheet(isPresented: $showSaveSheet) {
             SaveToCollectionSheet(item: current)
+        }
+        .sheet(item: $shareImage) { img in
+            ShareSheet(items: [img])
         }
     }
 
@@ -205,29 +209,11 @@ struct FullscreenPreviewView: View {
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 guard let img = UIImage(data: data) else { return }
-                await MainActor.run {
-                    let av = UIActivityViewController(activityItems: [img], applicationActivities: nil)
-                    // Traverse the presentation chain to find the topmost presented controller
-                    if let vc = topPresentedViewController() {
-                        vc.present(av, animated: true)
-                    }
-                }
+                await MainActor.run { shareImage = img }
             } catch {
                 await showToast("Failed to share")
             }
         }
-    }
-
-    private func topPresentedViewController() -> UIViewController? {
-        var vc = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow }?
-            .rootViewController
-        while let presented = vc?.presentedViewController {
-            vc = presented
-        }
-        return vc
     }
 
     @MainActor
@@ -262,4 +248,18 @@ struct StarRatingRow: View {
             }
         }
     }
+}
+
+// MARK: - UIImage Identifiable + ShareSheet
+
+extension UIImage: @retroactive Identifiable {
+    public var id: ObjectIdentifier { ObjectIdentifier(self) }
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

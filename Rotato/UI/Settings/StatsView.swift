@@ -114,22 +114,34 @@ private struct TagsGrid: View {
     }
 }
 
-// Simple manual flow layout using fixed-height rows
+// Two-column grid of tag chips for a compact, readable layout
 private struct FlowRow: View {
     let tags: [TagStat]
 
+    private let columns = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+    ]
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        LazyVGrid(columns: columns, spacing: 8) {
             ForEach(Array(tags.enumerated()), id: \.element.id) { _, tag in
-                Text("#\(tag.tag)  \(tag.count)")
-                    .font(.caption)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.accentColor.opacity(0.15), in: Capsule())
-                    .foregroundStyle(Color.accentColor)
+                HStack(spacing: 4) {
+                    Text("#\(tag.tag)")
+                        .font(.caption)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Text("\(tag.count)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                .foregroundStyle(Color.accentColor)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
     }
 }
 

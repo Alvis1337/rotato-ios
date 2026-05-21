@@ -12,9 +12,11 @@ struct ZoomableImageView: View {
         CachedImageView(url: url, contentMode: .fit)
             .scaleEffect(scale)
             .offset(offset)
+            .clipped()
             .gesture(magnifyGesture)
             .simultaneousGesture(dragGesture)
             .onTapGesture(count: 2) { handleDoubleTap() }
+            .onChange(of: url) { reset() }
     }
 
     private var magnifyGesture: some Gesture {
