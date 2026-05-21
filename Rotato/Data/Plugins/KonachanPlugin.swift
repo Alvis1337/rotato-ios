@@ -3,6 +3,7 @@ import Foundation
 struct KonachanPlugin: SourcePlugin {
     let id = "KONACHAN"
     let displayName = "Konachan"
+    let description = "High-res anime wallpapers · SFW on konachan.com · NSFW on konachan.net"
     let sfSymbol = "wand.and.sparkles"
     let requiresApiKey = false
     let supportsSearch = true

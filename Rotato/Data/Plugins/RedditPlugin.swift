@@ -3,6 +3,7 @@ import Foundation
 struct RedditPlugin: SourcePlugin {
     let id = "REDDIT"
     let displayName = "Reddit"
+    let description = "Fetches top posts from your configured subreddits"
     let sfSymbol = "bubble.left.and.bubble.right"
     let requiresApiKey = false
     let supportsSearch = false

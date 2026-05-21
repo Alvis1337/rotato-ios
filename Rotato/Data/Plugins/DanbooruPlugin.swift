@@ -3,6 +3,7 @@ import Foundation
 struct DanbooruPlugin: SourcePlugin {
     let id = "DANBOORU"
     let displayName = "Danbooru"
+    let description = "High-quality anime art · API key unlocks NSFW and higher rate limits"
     let sfSymbol = "camera.aperture"
     let requiresApiKey = true
     let supportsSearch = true

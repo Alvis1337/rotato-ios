@@ -72,7 +72,13 @@ private struct SourceRow: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Image(systemName: plugin.sfSymbol).foregroundStyle(.secondary).frame(width: 28)
-                Text(plugin.displayName)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(plugin.displayName)
+                    Text(plugin.description)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
                 Spacer()
                 Toggle("", isOn: Binding(
                     get: { currentConfig.enabled },
@@ -127,8 +133,8 @@ private struct ExpandedSourceFields: View {
                 .textInputAutocapitalization(.never)
 
             if plugin.requiresApiKey {
-                if plugin.id == "DANBOORU" {
-                    TextField("Username", text: $apiUser)
+                if plugin.id == "DANBOORU" || plugin.id == "GELBOORU" {
+                    TextField("Username / User ID", text: $apiUser)
                         .textFieldStyle(.roundedBorder).font(.caption)
                         .autocorrectionDisabled().textInputAutocapitalization(.never)
                 }

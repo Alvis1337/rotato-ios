@@ -3,6 +3,7 @@ import Foundation
 struct Rule34Plugin: SourcePlugin {
     let id = "RULE34"
     let displayName = "Rule34"
+    let description = "Everything has rule 34 · No account needed · NSFW-only content"
     let sfSymbol = "exclamationmark.triangle"
     let requiresApiKey = false
     let supportsSearch = true

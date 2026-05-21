@@ -3,6 +3,7 @@ import Foundation
 struct SafebooruPlugin: SourcePlugin {
     let id = "SAFEBOORU"
     let displayName = "Safebooru"
+    let description = "safebooru.org · Safe-for-work imageboard · All content is SFW"
     let sfSymbol = "shield.lefthalf.filled"
     let requiresApiKey = false
     let supportsSearch = true

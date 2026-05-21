@@ -134,7 +134,11 @@ final class DiscoverViewModel {
 
         return try await withThrowingTaskGroup(of: [WallpaperItem].self) { group in
             for plugin in enabledPlugins {
-                let config = configs[plugin.id] ?? SourceConfig()
+                var config = configs[plugin.id] ?? SourceConfig()
+                // Inject a random configured subreddit for the Reddit plugin
+                if plugin.id == "REDDIT", !settings.redditSubreddits.isEmpty {
+                    config.extraParam = settings.redditSubreddits.randomElement() ?? "wallpapers"
+                }
                 let q = plugin.supportsSearch ? effectiveQuery : ""
                 // Per-source NSFW override; falls back to global setting
                 let effectiveNsfw = config.nsfwOverride ?? nsfw

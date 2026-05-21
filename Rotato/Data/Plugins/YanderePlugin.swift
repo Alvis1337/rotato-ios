@@ -3,6 +3,7 @@ import Foundation
 struct YanderePlugin: SourcePlugin {
     let id = "YANDERE"
     let displayName = "Yande.re"
+    let description = "yande.re · High-quality anime wallpapers · Moebooru-based board"
     let sfSymbol = "sparkles"
     let requiresApiKey = false
     let supportsSearch = true

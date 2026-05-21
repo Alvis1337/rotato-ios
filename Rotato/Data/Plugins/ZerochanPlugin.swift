@@ -3,6 +3,7 @@ import Foundation
 struct ZerochanPlugin: SourcePlugin {
     let id = "ZEROCHAN"
     let displayName = "Zerochan"
+    let description = "zerochan.net · Anime art aggregator · Clean, curated images"
     let sfSymbol = "star.circle"
     let requiresApiKey = false
     let supportsSearch = true

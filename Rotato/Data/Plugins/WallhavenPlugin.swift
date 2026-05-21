@@ -3,6 +3,7 @@ import Foundation
 struct WallhavenPlugin: SourcePlugin {
     let id = "WALLHAVEN"
     let displayName = "Wallhaven"
+    let description = "Community wallpaper site · API key unlocks sketchy & NSFW content"
     let sfSymbol = "mountain.2"
     let requiresApiKey = true
     let supportsSearch = true

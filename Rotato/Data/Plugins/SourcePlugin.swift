@@ -3,6 +3,7 @@ import Foundation
 protocol SourcePlugin: Sendable {
     var id: String { get }
     var displayName: String { get }
+    var description: String { get }
     var sfSymbol: String { get }
     var requiresApiKey: Bool { get }
     var supportsSearch: Bool { get }

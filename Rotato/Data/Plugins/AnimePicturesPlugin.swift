@@ -3,6 +3,7 @@ import Foundation
 struct AnimePicturesPlugin: SourcePlugin {
     let id = "ANIMEPICTURES"
     let displayName = "Anime Pictures"
+    let description = "anime-pictures.net · High-quality curated anime artwork"
     let sfSymbol = "paintpalette"
     let requiresApiKey = false
     let supportsSearch = true

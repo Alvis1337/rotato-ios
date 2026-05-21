@@ -3,8 +3,9 @@ import Foundation
 struct GelbooruPlugin: SourcePlugin {
     let id = "GELBOORU"
     let displayName = "Gelbooru"
+    let description = "General-purpose imageboard · API key unlocks higher rate limits & NSFW"
     let sfSymbol = "photo.stack"
-    let requiresApiKey = false
+    let requiresApiKey = true
     let supportsSearch = true
 
     func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem] {

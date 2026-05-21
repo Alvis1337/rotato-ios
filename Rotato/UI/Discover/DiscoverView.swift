@@ -216,8 +216,6 @@ private struct WallpaperThumb: View {
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             CachedImageView(url: item.thumbnailURL, contentMode: .fill)
-                .aspectRatio(1, contentMode: .fill)
-                .clipped()
                 .blur(radius: item.isNSFW && !settings.nsfwEnabled ? 18 : 0)
 
             if item.isNSFW && !settings.nsfwEnabled {
@@ -237,6 +235,9 @@ private struct WallpaperThumb: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 3))
                 .padding(4)
         }
+        .frame(maxWidth: .infinity)
+        .aspectRatio(1, contentMode: .fit)
+        .clipped()
     }
 
     private func sourceLabel(for id: String) -> String {
