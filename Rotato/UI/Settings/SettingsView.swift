@@ -20,6 +20,7 @@ struct SettingsView: View {
 
                 Section("Sources") {
                     NavigationLink("Configure Sources") { SourceSettingsView() }
+                    NavigationLink("Source Health") { SourceHealthView() }
                 }
 
                 Section("MyAnimeList") {

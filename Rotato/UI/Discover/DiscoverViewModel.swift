@@ -136,12 +136,14 @@ final class DiscoverViewModel {
             for plugin in enabledPlugins {
                 let config = configs[plugin.id] ?? SourceConfig()
                 let q = plugin.supportsSearch ? effectiveQuery : ""
+                // Per-source NSFW override; falls back to global setting
+                let effectiveNsfw = config.nsfwOverride ?? nsfw
                 group.addTask {
                     (try? await plugin.fetch(
                         query: q,
                         page: page,
                         config: config,
-                        nsfw: nsfw
+                        nsfw: effectiveNsfw
                     )) ?? []
                 }
             }

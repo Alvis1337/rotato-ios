@@ -4,7 +4,9 @@ enum PluginRegistry {
     static let all: [any SourcePlugin] = [
         GelbooruPlugin(),
         DanbooruPlugin(),
+        SafebooruPlugin(),
         KonachanPlugin(),
+        YanderePlugin(),
         ZerochanPlugin(),
         AnimePicturesPlugin(),
         WallhavenPlugin(),

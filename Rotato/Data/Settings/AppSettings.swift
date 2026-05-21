@@ -7,6 +7,55 @@ struct SourceConfig: Codable {
     var apiUser: String = ""
     var tags: String = ""
     var extraParam: String = ""  // e.g. wallhaven purity string "110", reddit subreddits JSON
+    var nsfwOverride: Bool? = nil // nil = use global, true/false = override per-source
+}
+
+// MARK: - History
+
+struct HistoryItem: Codable, Identifiable {
+    var id: String
+    var sourceId: String
+    var thumbnailURL: String
+    var imageURL: String
+    var tags: [String]
+    var width: Int
+    var height: Int
+    var rating: String
+    var savedAt: Date
+
+    var isNSFW: Bool {
+        rating == "explicit" || rating == "e" || rating == "questionable" || rating == "q"
+    }
+}
+
+extension HistoryItem {
+    init(from item: WallpaperItem) {
+        self.id = item.id
+        self.sourceId = item.sourceId
+        self.thumbnailURL = item.thumbnailURL.absoluteString
+        self.imageURL = item.imageURL.absoluteString
+        self.tags = item.tags
+        self.width = item.width
+        self.height = item.height
+        self.rating = item.rating
+        self.savedAt = Date()
+    }
+
+    var wallpaperItem: WallpaperItem? {
+        guard let img = URL(string: imageURL), let thumb = URL(string: thumbnailURL) else { return nil }
+        return WallpaperItem(id: id, imageURL: img, thumbnailURL: thumb,
+                             sourceId: sourceId, tags: tags, width: width, height: height, rating: rating)
+    }
+}
+
+// MARK: - Source Health
+
+struct SourceHealthResult: Codable {
+    var lastSuccess: Date?
+    var lastError: String?
+    var isTesting: Bool = false
+    var successCount: Int = 0
+    var totalFetches: Int = 0
 }
 
 /// All app settings backed by UserDefaults.
@@ -61,6 +110,58 @@ final class AppSettings {
 
     var wifiOnlyDiscover: Bool { didSet { UserDefaults.standard.set(wifiOnlyDiscover, forKey: "wifi_only_discover") } }
 
+    // MARK: - Ratings  (item ID → 1-5 stars, 0 = unrated)
+
+    var wallpaperRatings: [String: Int] {
+        didSet {
+            if let data = try? JSONEncoder().encode(wallpaperRatings) {
+                UserDefaults.standard.set(data, forKey: "wallpaper_ratings")
+            }
+        }
+    }
+
+    func rating(for itemId: String) -> Int { wallpaperRatings[itemId] ?? 0 }
+
+    func setRating(_ stars: Int, for itemId: String) {
+        var r = wallpaperRatings
+        if stars == 0 { r.removeValue(forKey: itemId) } else { r[itemId] = max(1, min(5, stars)) }
+        wallpaperRatings = r
+    }
+
+    // MARK: - History  (most recent first, capped at 200)
+
+    var history: [HistoryItem] {
+        didSet {
+            if let data = try? JSONEncoder().encode(history) {
+                UserDefaults.standard.set(data, forKey: "history")
+            }
+        }
+    }
+
+    func addToHistory(_ item: WallpaperItem) {
+        var h = history
+        h.removeAll { $0.id == item.id }         // deduplicate
+        h.insert(HistoryItem(from: item), at: 0) // newest first
+        if h.count > 200 { h = Array(h.prefix(200)) }
+        history = h
+    }
+
+    // MARK: - Source health
+
+    var sourceHealth: [String: SourceHealthResult] {
+        didSet {
+            if let data = try? JSONEncoder().encode(sourceHealth) {
+                UserDefaults.standard.set(data, forKey: "source_health")
+            }
+        }
+    }
+
+    func updateHealth(_ result: SourceHealthResult, for pluginId: String) {
+        var h = sourceHealth
+        h[pluginId] = result
+        sourceHealth = h
+    }
+
     // MARK: - Init
 
     init() {
@@ -78,13 +179,40 @@ final class AppSettings {
         malMinScore       = d.integer(forKey: "mal_min_score")
         malFilterStatuses = Set(d.stringArray(forKey: "mal_filter_statuses") ?? ["watching", "completed"])
 
+        if let data = d.data(forKey: "wallpaper_ratings"),
+           let decoded = try? JSONDecoder().decode([String: Int].self, from: data) {
+            wallpaperRatings = decoded
+        } else {
+            wallpaperRatings = [:]
+        }
+
+        if let data = d.data(forKey: "history"),
+           let decoded = try? JSONDecoder().decode([HistoryItem].self, from: data) {
+            history = decoded
+        } else {
+            history = []
+        }
+
+        if let data = d.data(forKey: "source_health"),
+           let decoded = try? JSONDecoder().decode([String: SourceHealthResult].self, from: data) {
+            sourceHealth = decoded
+        } else {
+            sourceHealth = [:]
+        }
+
         if let data = d.data(forKey: "source_configs"),
            let decoded = try? JSONDecoder().decode([String: SourceConfig].self, from: data) {
-            sourceConfigs = decoded
+            // Merge saved configs with any new plugins that weren't previously registered
+            var merged = decoded
+            for plugin in PluginRegistry.all where merged[plugin.id] == nil {
+                merged[plugin.id] = SourceConfig(enabled: plugin.id == "GELBOORU" || plugin.id == "SAFEBOORU")
+            }
+            sourceConfigs = merged
         } else {
             var c: [String: SourceConfig] = [:]
             for plugin in PluginRegistry.all {
-                c[plugin.id] = SourceConfig(enabled: plugin.id == "GELBOORU")
+                let enabledByDefault = plugin.id == "GELBOORU" || plugin.id == "SAFEBOORU"
+                c[plugin.id] = SourceConfig(enabled: enabledByDefault)
             }
             sourceConfigs = c
         }

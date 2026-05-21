@@ -9,6 +9,7 @@ struct LibraryView: View {
     @State private var collectionToDelete: SavedCollection?
     @State private var collectionToRename: SavedCollection?
     @State private var renameText = ""
+    @State private var selectedTab = 0
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -17,44 +18,29 @@ struct LibraryView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if collections.isEmpty {
-                    ContentUnavailableView(
-                        "No Collections",
-                        systemImage: "photo.stack",
-                        description: Text("Tap + to create your first collection, then save wallpapers from Discover.")
-                    )
+            VStack(spacing: 0) {
+                Picker("", selection: $selectedTab) {
+                    Text("Collections").tag(0)
+                    Text("History").tag(1)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+
+                if selectedTab == 0 {
+                    collectionsView
                 } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 12) {
-                            ForEach(collections) { col in
-                                NavigationLink(destination: CollectionDetailView(collection: col)) {
-                                    CollectionCard(collection: col)
-                                }
-                                .contextMenu {
-                                    Button {
-                                        renameText = col.name
-                                        collectionToRename = col
-                                    } label: {
-                                        Label("Rename", systemImage: "pencil")
-                                    }
-                                    Button(role: .destructive) {
-                                        collectionToDelete = col
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
-                            }
-                        }
-                        .padding(12)
-                    }
+                    HistoryView()
+                        .navigationBarHidden(true)
                 }
             }
-            .navigationTitle("Library")
+            .navigationTitle(selectedTab == 0 ? "Library" : "History")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showNewCollectionAlert = true } label: {
-                        Image(systemName: "plus")
+                if selectedTab == 0 {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { showNewCollectionAlert = true } label: {
+                            Image(systemName: "plus")
+                        }
                     }
                 }
             }
@@ -97,8 +83,43 @@ struct LibraryView: View {
         }
     }
 
+    private var collectionsView: some View {
+        Group {
+            if collections.isEmpty {
+                ContentUnavailableView(
+                    "No Collections",
+                    systemImage: "photo.stack",
+                    description: Text("Tap + to create your first collection, then save wallpapers from Discover.")
+                )
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(collections) { col in
+                            NavigationLink(destination: CollectionDetailView(collection: col)) {
+                                CollectionCard(collection: col)
+                            }
+                            .contextMenu {
+                                Button {
+                                    renameText = col.name
+                                    collectionToRename = col
+                                } label: {
+                                    Label("Rename", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) {
+                                    collectionToDelete = col
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
+                    .padding(12)
+                }
+            }
+        }
+    }
+
     private func deleteCollection(_ col: SavedCollection) {
-        // Delete entries first
         let id = col.id
         let descriptor = FetchDescriptor<SavedEntry>(predicate: #Predicate { $0.collectionId == id })
         if let entries = try? modelContext.fetch(descriptor) {

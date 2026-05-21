@@ -7,6 +7,7 @@ struct FullscreenPreviewView: View {
     let onDismiss: () -> Void
     var onSave: ((WallpaperItem) -> Void)? = nil  // save to collection
 
+    @Environment(AppSettings.self) private var settings
     @State private var currentIndex: Int
     @State private var showOverlay = true
     @State private var dragOffset: CGFloat = 0
@@ -57,6 +58,8 @@ struct FullscreenPreviewView: View {
             }
         }
         .statusBarHidden(!showOverlay)
+        .onAppear { settings.addToHistory(current) }
+        .onChange(of: currentIndex) { settings.addToHistory(current) }
     }
 
     private var overlayView: some View {
@@ -126,6 +129,10 @@ struct FullscreenPreviewView: View {
                     }
                 }
                 .padding(.horizontal, 16)
+
+                // Star rating row
+                StarRatingRow(itemId: current.id, settings: settings)
+                    .padding(.horizontal, 16)
 
                 // Action buttons
                 HStack(spacing: 20) {
@@ -214,6 +221,31 @@ struct FullscreenPreviewView: View {
         withAnimation { saveToast = message }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             withAnimation { saveToast = nil }
+        }
+    }
+}
+
+// MARK: - Star Rating Row
+
+struct StarRatingRow: View {
+    let itemId: String
+    let settings: AppSettings
+
+    private var current: Int { settings.rating(for: itemId) }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(1...5, id: \.self) { star in
+                Button {
+                    let newRating = (current == star) ? 0 : star  // tap same star to clear
+                    settings.setRating(newRating, for: itemId)
+                } label: {
+                    Image(systemName: star <= current ? "star.fill" : "star")
+                        .font(.system(size: 20))
+                        .foregroundStyle(star <= current ? Color.yellow : Color.white.opacity(0.5))
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 }

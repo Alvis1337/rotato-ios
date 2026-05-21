@@ -106,6 +106,13 @@ private struct ExpandedSourceFields: View {
     @State private var apiUser = ""
     @State private var tags = ""
     @State private var purity = ""
+    @State private var nsfwOverrideEnabled = false
+    @State private var nsfwOverrideValue = false
+
+    // Sources that have SFW-only content don't need a per-source NSFW override
+    private var supportsNsfwOverride: Bool {
+        !["SAFEBOORU"].contains(plugin.id)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -138,12 +145,30 @@ private struct ExpandedSourceFields: View {
                 PurityToggleRow(purity: $purity)
             }
 
+            if supportsNsfwOverride {
+                Divider()
+                Toggle(isOn: $nsfwOverrideEnabled) {
+                    Text("Override global NSFW setting").font(.caption)
+                }
+                .toggleStyle(.switch)
+                .onChange(of: nsfwOverrideEnabled) { _, enabled in
+                    if !enabled { nsfwOverrideValue = false }
+                }
+                if nsfwOverrideEnabled {
+                    Toggle(isOn: $nsfwOverrideValue) {
+                        Text("Allow NSFW for this source").font(.caption)
+                    }
+                    .toggleStyle(.switch)
+                }
+            }
+
             Button("Save") {
                 var config = settings.config(for: plugin.id)
                 config.tags = tags
                 config.apiKey = apiKey
                 config.apiUser = apiUser
                 if plugin.id == "WALLHAVEN" { config.extraParam = purity }
+                config.nsfwOverride = nsfwOverrideEnabled ? nsfwOverrideValue : nil
                 settings.setConfig(config, for: plugin.id)
             }
             .font(.caption)
@@ -156,6 +181,8 @@ private struct ExpandedSourceFields: View {
             apiKey = c.apiKey
             apiUser = c.apiUser
             purity = c.extraParam.isEmpty ? "100" : c.extraParam
+            nsfwOverrideEnabled = c.nsfwOverride != nil
+            nsfwOverrideValue = c.nsfwOverride ?? false
         }
     }
 }
