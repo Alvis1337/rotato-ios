@@ -4,7 +4,7 @@ struct DanbooruPlugin: SourcePlugin {
     let id = "DANBOORU"
     let displayName = "Danbooru"
     let sfSymbol = "camera.aperture"
-    let requiresApiKey = false
+    let requiresApiKey = true
     let supportsSearch = true
 
     func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem] {

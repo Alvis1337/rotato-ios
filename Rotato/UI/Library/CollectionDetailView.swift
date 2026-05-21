@@ -154,8 +154,7 @@ struct CollectionDetailView: View {
         return FullscreenPreviewView(
             items: wallpapers,
             initialIndex: selectedIndex,
-            onDismiss: { selectedEntry = nil },
-            onSave: nil
+            onDismiss: { selectedEntry = nil }
         )
     }
 

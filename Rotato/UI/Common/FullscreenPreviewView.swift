@@ -1,24 +1,25 @@
 import SwiftUI
 import Photos
+import SwiftData
 
 struct FullscreenPreviewView: View {
     let items: [WallpaperItem]
     let initialIndex: Int
     let onDismiss: () -> Void
-    var onSave: ((WallpaperItem) -> Void)? = nil  // save to collection
 
     @Environment(AppSettings.self) private var settings
+    @Environment(\.modelContext) private var modelContext
     @State private var currentIndex: Int
     @State private var showOverlay = true
     @State private var dragOffset: CGFloat = 0
     @State private var isDismissing = false
     @State private var saveToast: String?
+    @State private var showSaveSheet = false
 
-    init(items: [WallpaperItem], initialIndex: Int = 0, onDismiss: @escaping () -> Void, onSave: ((WallpaperItem) -> Void)? = nil) {
+    init(items: [WallpaperItem], initialIndex: Int = 0, onDismiss: @escaping () -> Void) {
         self.items = items
         self.initialIndex = initialIndex
         self.onDismiss = onDismiss
-        self.onSave = onSave
         _currentIndex = State(initialValue: initialIndex)
     }
 
@@ -60,6 +61,9 @@ struct FullscreenPreviewView: View {
         .statusBarHidden(!showOverlay)
         .onAppear { settings.addToHistory(current) }
         .onChange(of: currentIndex) { settings.addToHistory(current) }
+        .sheet(isPresented: $showSaveSheet) {
+            SaveToCollectionSheet(item: current)
+        }
     }
 
     private var overlayView: some View {
@@ -136,9 +140,7 @@ struct FullscreenPreviewView: View {
 
                 // Action buttons
                 HStack(spacing: 20) {
-                    if let onSave {
-                        actionButton(icon: "bookmark", label: "Save") { onSave(current) }
-                    }
+                    actionButton(icon: "bookmark", label: "Save") { showSaveSheet = true }
                     actionButton(icon: "square.and.arrow.down", label: "Save to Photos") { saveToPhotos() }
                     actionButton(icon: "square.and.arrow.up", label: "Share") { share() }
                 }
@@ -205,8 +207,8 @@ struct FullscreenPreviewView: View {
                 guard let img = UIImage(data: data) else { return }
                 await MainActor.run {
                     let av = UIActivityViewController(activityItems: [img], applicationActivities: nil)
-                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                       let vc = scene.windows.first?.rootViewController {
+                    // Traverse the presentation chain to find the topmost presented controller
+                    if let vc = topPresentedViewController() {
                         vc.present(av, animated: true)
                     }
                 }
@@ -214,6 +216,18 @@ struct FullscreenPreviewView: View {
                 await showToast("Failed to share")
             }
         }
+    }
+
+    private func topPresentedViewController() -> UIViewController? {
+        var vc = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }?
+            .rootViewController
+        while let presented = vc?.presentedViewController {
+            vc = presented
+        }
+        return vc
     }
 
     @MainActor

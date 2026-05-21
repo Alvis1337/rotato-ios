@@ -137,7 +137,9 @@ final class MalService: NSObject, ASWebAuthenticationPresentationContextProvidin
     // MARK: - ASWebAuthenticationPresentationContextProviding
 
     nonisolated func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        DispatchQueue.main.sync {
+        // ASWebAuthenticationSession calls this on the main thread; DispatchQueue.main.sync
+        // from main deadlocks. MainActor.assumeIsolated safely asserts we're already on main.
+        MainActor.assumeIsolated {
             UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }
                 .flatMap { $0.windows }

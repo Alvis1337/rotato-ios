@@ -4,7 +4,7 @@ struct WallhavenPlugin: SourcePlugin {
     let id = "WALLHAVEN"
     let displayName = "Wallhaven"
     let sfSymbol = "mountain.2"
-    let requiresApiKey = false
+    let requiresApiKey = true
     let supportsSearch = true
 
     func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem] {
