@@ -27,7 +27,8 @@ struct CollectionDetailView: View {
         if !searchQuery.isEmpty {
             let q = searchQuery.lowercased()
             result = result.filter { e in
-                e.tags.lowercased().contains(q) || e.sourcePluginId.lowercased().contains(q)
+                e.tags.contains(where: { $0.localizedCaseInsensitiveContains(q) }) ||
+                e.sourcePluginId.localizedCaseInsensitiveContains(q)
             }
         }
         switch sortOrder {
