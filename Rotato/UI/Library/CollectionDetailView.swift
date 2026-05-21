@@ -237,6 +237,7 @@ private struct CollectionEntryThumb: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity)
         .aspectRatio(1, contentMode: .fit)
         .clipped()
     }
