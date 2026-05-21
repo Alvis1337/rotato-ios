@@ -39,7 +39,7 @@ struct AutoRotationView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "wand.and.sparkles")
                             .font(.largeTitle)
-                            .foregroundStyle(.accentColor)
+                            .foregroundStyle(Color.accentColor)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Automatic Rotation")
                                 .font(.headline)
@@ -124,7 +124,7 @@ private struct StepRow: View {
                     .frame(width: 36, height: 36)
                 Text("\(number)")
                     .font(.system(.headline, design: .rounded).bold())
-                    .foregroundStyle(.accentColor)
+                    .foregroundStyle(Color.accentColor)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Label(title, systemImage: icon)
