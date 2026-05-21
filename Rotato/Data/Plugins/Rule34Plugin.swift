@@ -3,9 +3,10 @@ import Foundation
 struct Rule34Plugin: SourcePlugin {
     let id = "RULE34"
     let displayName = "Rule34"
-    let description = "Everything has rule 34 · No account needed · NSFW-only content"
+    let description = "R34 community content · API key for higher rate limits · NSFW-only"
     let sfSymbol = "exclamationmark.triangle"
-    let requiresApiKey = false
+    let requiresApiKey = true
+    let requiresApiUser = true
     let supportsSearch = true
 
     private static let videoExts = [".mp4", ".webm", ".mkv", ".avi", ".mov"]
@@ -16,7 +17,7 @@ struct Rule34Plugin: SourcePlugin {
 
         func makeURL(pid: Int) -> URL {
             var comps = URLComponents(string: "https://api.rule34.xxx/index.php")!
-            comps.queryItems = [
+            var items: [URLQueryItem] = [
                 .init(name: "page", value: "dapi"),
                 .init(name: "s", value: "post"),
                 .init(name: "q", value: "index"),
@@ -25,11 +26,13 @@ struct Rule34Plugin: SourcePlugin {
                 .init(name: "pid", value: "\(pid)"),
                 .init(name: "tags", value: tags),
             ]
+            if !config.apiUser.isEmpty { items.append(.init(name: "user_id", value: config.apiUser)) }
+            if !config.apiKey.isEmpty { items.append(.init(name: "api_key", value: config.apiKey)) }
+            comps.queryItems = items
             return comps.url!
         }
 
         // Fetch XML count endpoint to find valid pid range, then pick a random page.
-        // Without this, paging into an empty range silently returns nothing.
         let safePid: Int
         if page == 0, let countURL = makeCountURL(tags: tags) {
             let countReq = browserRequest(url: countURL)

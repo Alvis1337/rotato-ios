@@ -6,6 +6,7 @@ struct GelbooruPlugin: SourcePlugin {
     let description = "General-purpose imageboard · API key unlocks higher rate limits & NSFW"
     let sfSymbol = "photo.stack"
     let requiresApiKey = true
+    let requiresApiUser = true
     let supportsSearch = true
 
     private static let videoExts = [".mp4", ".webm", ".mkv", ".avi", ".mov"]

@@ -157,7 +157,8 @@ private struct CollectionCard: View {
                     CachedImageView(url: URL(string: collection.coverImageURL), contentMode: .fill)
                 }
             }
-            .aspectRatio(1.5, contentMode: .fill)
+            .frame(maxWidth: .infinity)
+            .aspectRatio(1.5, contentMode: .fit)
             .clipped()
 
             VStack(alignment: .leading, spacing: 2) {
@@ -175,6 +176,7 @@ private struct CollectionCard: View {
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
+        .frame(maxWidth: .infinity)
         .onAppear { fetchCount() }
     }
 

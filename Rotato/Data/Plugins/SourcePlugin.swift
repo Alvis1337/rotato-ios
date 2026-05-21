@@ -6,6 +6,7 @@ protocol SourcePlugin: Sendable {
     var description: String { get }
     var sfSymbol: String { get }
     var requiresApiKey: Bool { get }
+    var requiresApiUser: Bool { get }
     var supportsSearch: Bool { get }
 
     func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem]
@@ -46,6 +47,10 @@ extension URLSession {
             throw SourceError.decodingError
         }
     }
+}
+
+extension SourcePlugin {
+    var requiresApiUser: Bool { false }
 }
 
 // MARK: - Shared helpers

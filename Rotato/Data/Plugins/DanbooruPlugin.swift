@@ -6,6 +6,7 @@ struct DanbooruPlugin: SourcePlugin {
     let description = "High-quality anime art · API key unlocks NSFW and higher rate limits"
     let sfSymbol = "camera.aperture"
     let requiresApiKey = true
+    let requiresApiUser = true
     let supportsSearch = true
 
     func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem] {

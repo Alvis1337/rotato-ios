@@ -133,7 +133,7 @@ private struct ExpandedSourceFields: View {
                 .textInputAutocapitalization(.never)
 
             if plugin.requiresApiKey {
-                if plugin.id == "DANBOORU" || plugin.id == "GELBOORU" {
+                if plugin.requiresApiUser {
                     TextField("Username / User ID", text: $apiUser)
                         .textFieldStyle(.roundedBorder).font(.caption)
                         .autocorrectionDisabled().textInputAutocapitalization(.never)
