@@ -28,6 +28,8 @@ enum BackgroundRefreshManager {
         scheduleIfNeeded() // re-schedule for next cycle
 
         let taskWork = Task {
+            defer { task.setTaskCompleted(success: !Task.isCancelled) }
+
             // Pre-warm: fetch a random item URL and store it in UserDefaults
             // so the next Shortcut intent run can return faster.
             let settings = AppSettings()
@@ -45,12 +47,10 @@ enum BackgroundRefreshManager {
                 }
                 break
             }
-            task.setTaskCompleted(success: true)
         }
 
         task.expirationHandler = {
             taskWork.cancel()
-            task.setTaskCompleted(success: false)
         }
     }
 }

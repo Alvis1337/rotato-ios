@@ -46,8 +46,8 @@ struct FetchNextWallpaperIntent: AppIntent {
 
             // Detect MIME type from data magic bytes for a clean filename
             let ext = imageExtension(for: data)
-            let file = IntentFile(data: data, filename: "rotato-wallpaper.\(ext)",
-                                  type: ext == "png" ? .png : .jpeg)
+            let utType: UTType = ext == "png" ? .png : ext == "webp" ? .webP : .jpeg
+            let file = IntentFile(data: data, filename: "rotato-wallpaper.\(ext)", type: utType)
             return .result(value: file)
         }
 
@@ -55,11 +55,16 @@ struct FetchNextWallpaperIntent: AppIntent {
     }
 
     private func imageExtension(for data: Data) -> String {
-        guard data.count >= 4 else { return "jpg" }
-        let bytes = [UInt8](data.prefix(4))
+        guard data.count >= 12 else { return "jpg" }
+        let bytes = [UInt8](data.prefix(12))
         if bytes[0] == 0x89 && bytes[1] == 0x50 { return "png" }
         if bytes[0] == 0x47 && bytes[1] == 0x49 { return "gif" }
         if bytes[0] == 0xFF && bytes[1] == 0xD8 { return "jpg" }
+        // WEBP: RIFF????WEBP
+        if bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[2] == 0x46 && bytes[3] == 0x46
+            && bytes[8] == 0x57 && bytes[9] == 0x45 && bytes[10] == 0x42 && bytes[11] == 0x50 {
+            return "webp"
+        }
         return "jpg"
     }
 }

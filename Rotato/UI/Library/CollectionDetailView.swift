@@ -14,7 +14,6 @@ struct CollectionDetailView: View {
     @Environment(AppSettings.self) private var settings
     @State private var entries: [SavedEntry] = []
     @State private var selectedEntry: SavedEntry?
-    @State private var selectedIndex = 0
     @State private var editMode = false
     @State private var selectedForDelete = Set<UUID>()
     @State private var showDeleteConfirm = false
@@ -78,7 +77,6 @@ struct CollectionDetailView: View {
                                         selectedForDelete.insert(entry.id)
                                     }
                                 } else {
-                                    selectedIndex = idx
                                     selectedEntry = entry
                                 }
                             }
@@ -151,9 +149,11 @@ struct CollectionDetailView: View {
                                  sourceId: e.sourcePluginId, tags: e.tags,
                                  width: e.width, height: e.height, rating: e.rating)
         }
+        // Derive index from entry ID so filter changes don't produce a stale index
+        let idx = filteredEntries.firstIndex(where: { $0.id == entry.id }) ?? 0
         return FullscreenPreviewView(
             items: wallpapers,
-            initialIndex: selectedIndex,
+            initialIndex: idx,
             onDismiss: { selectedEntry = nil }
         )
     }
@@ -175,9 +175,11 @@ struct CollectionDetailView: View {
         selectedForDelete.removeAll()
         editMode = false
         fetchEntries()
-        // Update cover if we deleted it
-        if let first = entries.first {
-            collection.coverImageURL = first.thumbnailURL?.absoluteString ?? ""
+        // Sync cover: clear if no entries remain, otherwise keep it pointing at the first
+        if entries.isEmpty {
+            collection.coverImageURL = ""
+        } else {
+            collection.coverImageURL = entries.first?.thumbnailURL?.absoluteString ?? ""
         }
     }
 }

@@ -142,7 +142,17 @@ final class AppSettings {
         var h = history
         h.removeAll { $0.id == item.id }         // deduplicate
         h.insert(HistoryItem(from: item), at: 0) // newest first
-        if h.count > 200 { h = Array(h.prefix(200)) }
+        if h.count > 200 {
+            let removed = h.dropFirst(200).map { $0.id }
+            h = Array(h.prefix(200))
+            // Prune ratings for IDs no longer in history
+            if !removed.isEmpty {
+                let removedSet = Set(removed)
+                var r = wallpaperRatings
+                removedSet.forEach { r.removeValue(forKey: $0) }
+                wallpaperRatings = r
+            }
+        }
         history = h
     }
 

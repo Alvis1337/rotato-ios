@@ -88,8 +88,8 @@ final class DiscoverViewModel {
         let enabledIds = Set(PluginRegistry.all.filter { settings.config(for: $0.id).enabled }.map { $0.id })
 
         if wasEmpty {
-            // All were active — deactivate all except the tapped one
-            activeSourceIds = enabledIds.subtracting([id])
+            // All were active — show only the tapped one
+            activeSourceIds = [id]
         } else {
             if activeSourceIds.contains(id) {
                 activeSourceIds.remove(id)

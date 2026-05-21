@@ -106,9 +106,15 @@ struct MalSettingsView: View {
     }
 
     private func fetchUsername() async throws {
-        var request = URLRequest(url: URL(string: "https://api.myanimelist.net/v2/users/@me")!)
+        guard let url = URL(string: "https://api.myanimelist.net/v2/users/@me") else {
+            throw URLError(.badURL)
+        }
+        var request = URLRequest(url: url)
         request.setValue("Bearer \(settings.malAccessToken)", forHTTPHeaderField: "Authorization")
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
         struct User: Decodable { let name: String }
         let user = try JSONDecoder().decode(User.self, from: data)
         settings.malUsername = user.name
