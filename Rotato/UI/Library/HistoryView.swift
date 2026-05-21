@@ -59,9 +59,7 @@ private struct HistoryThumb: View {
         let isNSFW = entry.isNSFW && !settings.nsfwEnabled
         ZStack(alignment: .bottomTrailing) {
             CachedImageView(url: URL(string: entry.thumbnailURL), contentMode: .fill)
-                .aspectRatio(1, contentMode: .fill)
                 .blur(radius: isNSFW ? 18 : 0)
-                .clipped()
 
             if isNSFW {
                 Image(systemName: "eye.slash.fill")

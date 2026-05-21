@@ -9,7 +9,8 @@ struct CachedImageView: View {
     @State private var shimmerPhase: CGFloat = -1.0
 
     var body: some View {
-        Group {
+        ZStack {
+            Color(.systemFill)
             if let image {
                 Image(uiImage: image)
                     .resizable()
@@ -17,9 +18,8 @@ struct CachedImageView: View {
             } else if isLoading {
                 shimmerView
             } else {
-                Rectangle()
-                    .fill(Color(.systemFill))
-                    .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
+                Image(systemName: "photo")
+                    .foregroundStyle(.secondary)
             }
         }
         .task(id: url?.absoluteString) {

@@ -58,80 +58,85 @@ struct DiscoverView: View {
         } else if vm.noResults {
             noResultsView(vm: vm)
         } else {
-            VStack(spacing: 0) {
-                // Source chips live OUTSIDE the scrollable area to avoid bounce conflicts
-                sourceChips(vm: vm)
-
-                ScrollView {
-                    if showSearchField {
-                        HStack {
-                            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                            TextField("Search tags…", text: Binding(
-                                get: { vm.searchQuery },
-                                set: { vm.searchQuery = $0 }
-                            ))
-                            .focused($searchFocused)
-                            .submitLabel(.search)
-                            .onSubmit { Task { await vm.search() } }
-                            if !vm.searchQuery.isEmpty {
-                                Button { vm.clearSearch(); showSearchField = false } label: {
-                                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
-                        .padding(.horizontal, 12).padding(.top, 4)
-                        .onAppear { searchFocused = true }
-                    }
-
-                    // MAL tag banner
-                    if vm.searchQuery.isEmpty, !vm.items.isEmpty, !vm.currentMalTag.isEmpty {
-                        let mal = vm.currentMalTag
-                        HStack(spacing: 6) {
-                            Image(systemName: "list.star")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text("MAL: \(mal)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.bottom, 4)
-                    }
-
-                    LazyVGrid(columns: columns, spacing: 2) {
-                        ForEach(Array(vm.items.enumerated()), id: \.element.id) { idx, item in
-                            WallpaperThumb(item: item)
-                                .onTapGesture {
-                                    selectedItemIndex = idx
-                                    selectedItem = item
-                                }
-                                .onAppear {
-                                    if idx == vm.items.count - 8 {
-                                        Task { await vm.loadMore() }
+            let enabledPlugins = PluginRegistry.all.filter { settings.config(for: $0.id).enabled }
+            ScrollView {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    Section {
+                        if showSearchField {
+                            HStack {
+                                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                                TextField("Search tags…", text: Binding(
+                                    get: { vm.searchQuery },
+                                    set: { vm.searchQuery = $0 }
+                                ))
+                                .focused($searchFocused)
+                                .submitLabel(.search)
+                                .onSubmit { Task { await vm.search() } }
+                                if !vm.searchQuery.isEmpty {
+                                    Button { vm.clearSearch(); showSearchField = false } label: {
+                                        Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
                                     }
                                 }
+                            }
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                            .padding(.horizontal, 12).padding(.top, 8)
+                            .onAppear { searchFocused = true }
                         }
-                    }
 
-                    if vm.isLoadingMore {
-                        HStack(spacing: 10) {
-                            ProgressView().controlSize(.small)
-                            Text("Loading more…")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                        // MAL tag banner
+                        if vm.searchQuery.isEmpty, !vm.items.isEmpty, !vm.currentMalTag.isEmpty {
+                            let mal = vm.currentMalTag
+                            HStack(spacing: 6) {
+                                Image(systemName: "list.star")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                Text("MAL: \(mal)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 4)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 16).padding(.vertical, 12)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, 12).padding(.vertical, 6)
+
+                        LazyVGrid(columns: columns, spacing: 2) {
+                            ForEach(Array(vm.items.enumerated()), id: \.element.id) { idx, item in
+                                WallpaperThumb(item: item)
+                                    .onTapGesture {
+                                        selectedItemIndex = idx
+                                        selectedItem = item
+                                    }
+                                    .onAppear {
+                                        if idx == vm.items.count - 8 {
+                                            Task { await vm.loadMore() }
+                                        }
+                                    }
+                            }
+                        }
+
+                        if vm.isLoadingMore {
+                            HStack(spacing: 10) {
+                                ProgressView().controlSize(.small)
+                                Text("Loading more…")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 16).padding(.vertical, 12)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                        }
+                    } header: {
+                        if enabledPlugins.count > 1 {
+                            sourceChips(vm: vm)
+                                .background(.bar)
+                        }
                     }
                 }
-                .refreshable { await vm.load() }
             }
+            .refreshable { await vm.load() }
         }
     }
 

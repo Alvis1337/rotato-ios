@@ -191,8 +191,6 @@ private struct CollectionEntryThumb: View {
     var body: some View {
         ZStack {
             CachedImageView(url: entry.thumbnailURL, contentMode: .fill)
-                .aspectRatio(1, contentMode: .fill)
-                .clipped()
 
             if entry.isNSFW && !settings.nsfwEnabled {
                 Rectangle().fill(.ultraThinMaterial)

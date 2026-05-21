@@ -28,6 +28,7 @@ struct LibraryView: View {
                 Picker("", selection: $selectedTab) {
                     Text("Collections").tag(0)
                     Text("History").tag(1)
+                    Text("Rotation").tag(2)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal, 16)
@@ -35,11 +36,13 @@ struct LibraryView: View {
 
                 if selectedTab == 0 {
                     collectionsView
-                } else {
+                } else if selectedTab == 1 {
                     HistoryView()
+                } else {
+                    AutoRotationView()
                 }
             }
-            .navigationTitle(selectedTab == 0 ? "Library" : "History")
+            .navigationTitle(selectedTab == 0 ? "Library" : selectedTab == 1 ? "History" : "Auto-Rotation")
             .toolbar {
                 if selectedTab == 0 {
                     ToolbarItem(placement: .topBarTrailing) {
