@@ -59,10 +59,25 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ios-v1.0.${{ env.BUILD_NUMBER }}
-          name: "Rotato iOS v1.0.${{ env.BUILD_NUMBER }} (unsigned)"
+          tag_name: ios-v1.1.${{ env.BUILD_NUMBER }}
+          name: "Rotato iOS v1.1.${{ env.BUILD_NUMBER }} (unsigned)"
           body: |
-            ## Rotato iOS – unsigned build
+            ## Rotato iOS v1.1.${{ env.BUILD_NUMBER }}
+
+            ### What's New in 1.1
+            - ⭐️ Star ratings (1–5) on any wallpaper
+            - 📜 Wallpaper history screen with NSFW blur and star badges
+            - 📊 Stats screen — history, collections, source breakdown, top tags
+            - 🔍 Sort and search inside collections (by date, rating, or source)
+            - 🛡️ Safebooru plugin
+            - 🌸 Yande.re plugin
+            - 🩺 Source Health — test any source
+            - 🔀 Per-source NSFW override
+            - 🔑 API key fields now visible for Danbooru and Wallhaven
+            - 📋 Changelog, Privacy Policy, Terms of Service, and Licenses in Settings
+            - 🐛 Fixed MAL connect crash, save to collection, share, scroll shake, blank screen
+
+            ---
 
             Download `Rotato-unsigned.ipa` and sign it with your Apple Developer certificate.
 
