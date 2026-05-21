@@ -42,6 +42,8 @@ targets:
           - CFBundleURLName: rotato-callback
             CFBundleURLSchemes:
               - rotato
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.chrisalvis.rotato.refresh
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.chrisalvis.rotato

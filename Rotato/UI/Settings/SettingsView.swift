@@ -31,6 +31,10 @@ struct SettingsView: View {
                     NavigationLink("Source Health") { SourceHealthView() }
                 }
 
+                Section("Auto-Rotation") {
+                    NavigationLink("Setup Wallpaper Rotation") { AutoRotationView() }
+                }
+
                 Section("MyAnimeList") {
                     NavigationLink("MAL Integration") { MalSettingsView() }
                 }
