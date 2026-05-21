@@ -1,5 +1,4 @@
 import SwiftUI
-import AppIntents
 
 struct AutoRotationView: View {
     var body: some View {
@@ -19,7 +18,7 @@ struct AutoRotationView: View {
                         }
                     }
                     Text("iOS doesn't allow apps to set wallpapers directly in the background — but Shortcuts can. " +
-                         "By chaining Rotato's "Fetch Wallpaper" action with the built-in "Set Wallpaper" " +
+                         "By chaining Rotato's \"Fetch Wallpaper\" action with the built-in \"Set Wallpaper\" " +
                          "action in a time-based automation, you get fully automatic wallpaper rotation.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -35,11 +34,11 @@ struct AutoRotationView: View {
                 StepRow(number: 2, icon: "clock.badge.plus", title: "Create an Automation",
                         detail: "Tap the Automation tab → + → Time of Day. Set your desired interval (hourly, daily, etc.).")
                 StepRow(number: 3, icon: "app.badge.fill", title: "Add Rotato Action",
-                        detail: "Tap "New Blank Automation" → search for "Rotato" → add "Fetch Next Wallpaper".")
+                        detail: "Tap \"New Blank Automation\" → search for \"Rotato\" → add \"Fetch Next Wallpaper\".")
                 StepRow(number: 4, icon: "photo.badge.arrow.down", title: "Add Set Wallpaper",
-                        detail: "After the Rotato action, add the "Set Wallpaper" action. Set the wallpaper input to "Shortcut Input".")
+                        detail: "After the Rotato action, add the \"Set Wallpaper\" action. Set the wallpaper input to \"Shortcut Input\".")
                 StepRow(number: 5, icon: "checkmark.seal.fill", title: "Disable Confirmation",
-                        detail: "Toggle OFF "Ask Before Running" so the automation fires silently in the background.")
+                        detail: "Toggle OFF \"Ask Before Running\" so the automation fires silently in the background.")
             } header: {
                 Text("Setup steps")
             }
@@ -66,7 +65,7 @@ struct AutoRotationView: View {
             } header: {
                 Text("Wallpaper target")
             } footer: {
-                Text("In the "Set Wallpaper" Shortcuts action, choose which screen(s) to update.")
+                Text("In the \"Set Wallpaper\" Shortcuts action, choose which screen(s) to update.")
             }
         }
         .navigationTitle("Auto-Rotation")
