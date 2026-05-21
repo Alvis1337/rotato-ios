@@ -26,15 +26,20 @@ struct RedditPlugin: SourcePlugin {
 
     private func mapPost(_ p: RedditPost, subreddit: String, nsfw: Bool) -> WallpaperItem? {
         guard !p.is_video,
-              let hint = p.post_hint, hint == "image",
-              let urlStr = p.url, urlStr.hasSuffix(".jpg") || urlStr.hasSuffix(".jpeg") || urlStr.hasSuffix(".png"),
+              let urlStr = p.url, isImageURL(urlStr),
               let imageURL = URL(string: urlStr) else { return nil }
         if p.over_18 && !nsfw { return nil }
 
         let thumbURL: URL
-        if let preview = p.preview?.images.first?.source.url,
-           let decoded = preview.replacingOccurrences(of: "&amp;", with: "&") as String?,
+        // Use the highest-resolution preview that isn't the original (to save bandwidth)
+        if let resolutions = p.preview?.images.first?.resolutions,
+           let bestRes = resolutions.last,
+           let decoded = bestRes.url.replacingOccurrences(of: "&amp;", with: "&") as String?,
            let pURL = URL(string: decoded) {
+            thumbURL = pURL
+        } else if let preview = p.preview?.images.first?.source.url,
+                  let decoded = preview.replacingOccurrences(of: "&amp;", with: "&") as String?,
+                  let pURL = URL(string: decoded) {
             thumbURL = pURL
         } else {
             thumbURL = imageURL
@@ -53,6 +58,17 @@ struct RedditPlugin: SourcePlugin {
             height: height,
             rating: p.over_18 ? "explicit" : "safe"
         )
+    }
+
+    private func isImageURL(_ urlStr: String) -> Bool {
+        let lower = urlStr.lowercased()
+        if lower.contains("i.redd.it") { return true }
+        if lower.contains("i.imgur.com") {
+            return lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg") ||
+                   lower.hasSuffix(".png") || lower.hasSuffix(".webp")
+        }
+        return lower.hasSuffix(".jpg") || lower.hasSuffix(".jpeg") ||
+               lower.hasSuffix(".png") || lower.hasSuffix(".webp")
     }
 }
 
@@ -79,6 +95,7 @@ private struct RedditPreview: Decodable {
 }
 private struct RedditImage: Decodable {
     let source: RedditImageSource
+    let resolutions: [RedditImageSource]?
 }
 private struct RedditImageSource: Decodable {
     let url: String

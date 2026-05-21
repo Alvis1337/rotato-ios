@@ -8,24 +8,43 @@ struct GelbooruPlugin: SourcePlugin {
     let requiresApiKey = true
     let supportsSearch = true
 
-    func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem] {
-        var comps = URLComponents(string: "https://gelbooru.com/index.php")!
-        let tags = buildTags(query: query, configTags: config.tags, nsfw: nsfw)
-        var items: [URLQueryItem] = [
-            .init(name: "page", value: "dapi"),
-            .init(name: "s", value: "post"),
-            .init(name: "q", value: "index"),
-            .init(name: "json", value: "1"),
-            .init(name: "limit", value: "30"),
-            .init(name: "pid", value: "\(page)"),
-            .init(name: "tags", value: tags),
-        ]
-        if !config.apiKey.isEmpty { items.append(.init(name: "api_key", value: config.apiKey)) }
-        if !config.apiUser.isEmpty { items.append(.init(name: "user_id", value: config.apiUser)) }
-        comps.queryItems = items
+    private static let videoExts = [".mp4", ".webm", ".mkv", ".avi", ".mov"]
 
-        let decoded = try await URLSession.shared.decodedData(GelbooruResponse.self,
-                                                              from: browserRequest(url: comps.url!))
+    func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem] {
+        let tags = buildTags(query: query, configTags: config.tags, nsfw: nsfw)
+        let authItems: [URLQueryItem] = [
+            config.apiKey.isEmpty ? nil : URLQueryItem(name: "api_key", value: config.apiKey),
+            config.apiUser.isEmpty ? nil : URLQueryItem(name: "user_id", value: config.apiUser),
+        ].compactMap { $0 }
+
+        func makeRequest(pid: Int) -> URLRequest {
+            var comps = URLComponents(string: "https://gelbooru.com/index.php")!
+            comps.queryItems = [
+                .init(name: "page", value: "dapi"),
+                .init(name: "s", value: "post"),
+                .init(name: "q", value: "index"),
+                .init(name: "json", value: "1"),
+                .init(name: "limit", value: "30"),
+                .init(name: "pid", value: "\(pid)"),
+                .init(name: "tags", value: tags),
+            ] + authItems
+            return browserRequest(url: comps.url!)
+        }
+
+        // Fetch page 0 to discover total count, then pick a safe random pid.
+        // Without this, a high pid can exceed result count and Gelbooru returns "Too deep!".
+        let page0 = try await URLSession.shared.decodedData(GelbooruResponse.self, from: makeRequest(pid: 0))
+        let count = page0.attributes?.count ?? 0
+        let limit = 30
+        let maxPid = max(0, min((count - 1) / limit, 100))
+        let safePid = page == 0 ? Int.random(in: 0...maxPid) : min(page, maxPid)
+
+        let decoded: GelbooruResponse
+        if safePid == 0 {
+            decoded = page0
+        } else {
+            decoded = try await URLSession.shared.decodedData(GelbooruResponse.self, from: makeRequest(pid: safePid))
+        }
         return (decoded.post ?? []).compactMap { mapPost($0) }
     }
 
@@ -44,6 +63,8 @@ struct GelbooruPlugin: SourcePlugin {
 
     private func mapPost(_ p: GelbooruPost) -> WallpaperItem? {
         guard let fileStr = p.file_url, let fileURL = URL(string: fileStr) else { return nil }
+        // Skip video posts — can't display mp4/webm in a wallpaper grid
+        guard !Self.videoExts.contains(where: { fileStr.lowercased().hasSuffix($0) }) else { return nil }
         // Use preview_url when available; reconstruct from hash/directory otherwise
         let thumbURL: URL
         if let preview = p.preview_url, let pURL = URL(string: preview) {
@@ -55,10 +76,11 @@ struct GelbooruPlugin: SourcePlugin {
         } else {
             thumbURL = fileURL
         }
+        let sampleURL = p.sample_url.flatMap { URL(string: $0) } ?? fileURL
         let tags = (p.tags ?? "").split(separator: " ").prefix(40).map(String.init)
         return WallpaperItem(
             id: "GELBOORU_\(p.id)",
-            imageURL: fileURL,
+            imageURL: sampleURL,
             thumbnailURL: thumbURL,
             sourceId: id,
             tags: Array(tags),
@@ -71,11 +93,22 @@ struct GelbooruPlugin: SourcePlugin {
 
 private struct GelbooruResponse: Decodable {
     let post: [GelbooruPost]?
+    let attributes: GelbooruAttributes?
+
+    private enum CodingKeys: String, CodingKey {
+        case post
+        case attributes = "@attributes"
+    }
+}
+
+private struct GelbooruAttributes: Decodable {
+    let count: Int?
 }
 
 private struct GelbooruPost: Decodable {
     let id: Int
     let file_url: String?
+    let sample_url: String?
     let preview_url: String?
     let hash: String?
     let width: Int?

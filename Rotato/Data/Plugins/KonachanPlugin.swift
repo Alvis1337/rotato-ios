@@ -8,6 +8,8 @@ struct KonachanPlugin: SourcePlugin {
     let requiresApiKey = false
     let supportsSearch = true
 
+    private static let videoExts = [".mp4", ".webm", ".mkv", ".avi", ".mov"]
+
     func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem] {
         let baseURL = nsfw ? "https://konachan.net/post.json" : "https://konachan.com/post.json"
         var comps = URLComponents(string: baseURL)!
@@ -29,7 +31,7 @@ struct KonachanPlugin: SourcePlugin {
     }
 
     private func buildTags(query: String, configTags: String) -> String {
-        var parts: [String] = []
+        var parts: [String] = ["order:random"]
         if !query.isEmpty {
             parts += normalizeBooruQuery(query).split(separator: " ").map(String.init)
         }
@@ -41,6 +43,7 @@ struct KonachanPlugin: SourcePlugin {
 
     private func mapPost(_ p: KonachanPost) -> WallpaperItem? {
         guard let fileStr = p.file_url, let fileURL = URL(string: fileStr) else { return nil }
+        guard !Self.videoExts.contains(where: { fileStr.lowercased().hasSuffix($0) }) else { return nil }
         let thumbStr = p.preview_url ?? p.sample_url ?? fileStr
         let thumbURL = URL(string: thumbStr) ?? fileURL
         let tags = (p.tags ?? "").split(separator: " ").prefix(40).map(String.init)

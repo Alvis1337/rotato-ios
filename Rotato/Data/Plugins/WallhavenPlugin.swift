@@ -31,10 +31,11 @@ struct WallhavenPlugin: SourcePlugin {
 
     private func mapWallpaper(_ w: WallhavenWallpaper) -> WallpaperItem {
         let tags = w.tags?.map { $0.name } ?? []
+        let thumbURL = URL(string: w.thumbs.small ?? w.thumbs.large)!
         return WallpaperItem(
             id: "WALLHAVEN_\(w.id)",
             imageURL: URL(string: w.path)!,
-            thumbnailURL: URL(string: w.thumbs.large)!,
+            thumbnailURL: thumbURL,
             sourceId: id,
             tags: Array(tags.prefix(40)),
             width: w.dimension_x,
@@ -58,6 +59,7 @@ private struct WallhavenWallpaper: Decodable {
     let tags: [WallhavenTag]?
 
     struct Thumbs: Decodable {
+        let small: String?
         let large: String
         let original: String
     }
