@@ -12,44 +12,41 @@ struct HistoryView: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if settings.history.isEmpty {
-                    ContentUnavailableView(
-                        "No History",
-                        systemImage: "clock.arrow.circlepath",
-                        description: Text("Wallpapers you view in Discover will appear here.")
-                    )
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 2) {
-                            ForEach(settings.history) { entry in
-                                HistoryThumb(entry: entry, settings: settings)
-                                    .onTapGesture {
-                                        if let item = entry.wallpaperItem {
-                                            selectedItem = item
-                                        }
+        Group {
+            if settings.history.isEmpty {
+                ContentUnavailableView(
+                    "No History",
+                    systemImage: "clock.arrow.circlepath",
+                    description: Text("Wallpapers you view in Discover will appear here.")
+                )
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 2) {
+                        ForEach(settings.history) { entry in
+                            HistoryThumb(entry: entry, settings: settings)
+                                .onTapGesture {
+                                    if let item = entry.wallpaperItem {
+                                        selectedItem = item
                                     }
-                            }
+                                }
                         }
                     }
                 }
             }
-            .navigationTitle("History")
-            .toolbar {
-                if !settings.history.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Clear") { showClearConfirm = true }
-                            .foregroundStyle(.red)
-                    }
+        }
+        .toolbar {
+            if !settings.history.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Clear") { showClearConfirm = true }
+                        .foregroundStyle(.red)
                 }
             }
-            .confirmationDialog("Clear all history?", isPresented: $showClearConfirm, titleVisibility: .visible) {
-                Button("Clear History", role: .destructive) { settings.history = [] }
-            }
-            .fullScreenCover(item: $selectedItem) { item in
-                FullscreenPreviewView(items: [item], onDismiss: { selectedItem = nil })
-            }
+        }
+        .confirmationDialog("Clear all history?", isPresented: $showClearConfirm, titleVisibility: .visible) {
+            Button("Clear History", role: .destructive) { settings.history = [] }
+        }
+        .fullScreenCover(item: $selectedItem) { item in
+            FullscreenPreviewView(items: [item], onDismiss: { selectedItem = nil })
         }
     }
 }

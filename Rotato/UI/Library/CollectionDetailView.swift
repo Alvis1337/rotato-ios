@@ -1,6 +1,12 @@
 import SwiftUI
 import SwiftData
 
+enum CollectionSortOrder: String, CaseIterable {
+    case dateAdded = "Date Added"
+    case rating = "Rating"
+    case source = "Source"
+}
+
 struct CollectionDetailView: View {
     let collection: SavedCollection
 
@@ -12,6 +18,32 @@ struct CollectionDetailView: View {
     @State private var editMode = false
     @State private var selectedForDelete = Set<UUID>()
     @State private var showDeleteConfirm = false
+    @State private var sortOrder: CollectionSortOrder = .dateAdded
+    @State private var sortAscending = false
+    @State private var searchQuery = ""
+
+    private var filteredEntries: [SavedEntry] {
+        var result = entries
+        if !searchQuery.isEmpty {
+            let q = searchQuery.lowercased()
+            result = result.filter { e in
+                e.tags.lowercased().contains(q) || e.sourcePluginId.lowercased().contains(q)
+            }
+        }
+        switch sortOrder {
+        case .dateAdded:
+            result.sort { sortAscending ? $0.savedAt < $1.savedAt : $0.savedAt > $1.savedAt }
+        case .rating:
+            result.sort {
+                let r0 = settings.rating(for: $0.id.uuidString)
+                let r1 = settings.rating(for: $1.id.uuidString)
+                return sortAscending ? r0 < r1 : r0 > r1
+            }
+        case .source:
+            result.sort { sortAscending ? $0.sourcePluginId < $1.sourcePluginId : $0.sourcePluginId > $1.sourcePluginId }
+        }
+        return result
+    }
 
     private let columns = [
         GridItem(.flexible(), spacing: 2),
@@ -30,35 +62,13 @@ struct CollectionDetailView: View {
             } else {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 2) {
-                        ForEach(Array(entries.enumerated()), id: \.element.id) { idx, entry in
-                            ZStack {
-                                CachedImageView(url: entry.thumbnailURL, contentMode: .fill)
-                                    .aspectRatio(1, contentMode: .fill)
-                                    .clipped()
-                                if entry.isNSFW && !settings.nsfwEnabled {
-                                    Rectangle()
-                                        .fill(.ultraThinMaterial)
-                                    Image(systemName: "eye.slash.fill")
-                                        .foregroundStyle(.white)
-                                        .font(.title3)
-                                }
-                                if editMode {
-                                    Color.black.opacity(0.25)
-                                    VStack {
-                                        HStack {
-                                            Spacer()
-                                            Image(systemName: selectedForDelete.contains(entry.id) ? "checkmark.circle.fill" : "circle")
-                                                .font(.system(size: 20))
-                                                .foregroundStyle(selectedForDelete.contains(entry.id) ? .blue : .white)
-                                                .shadow(radius: 2)
-                                                .padding(4)
-                                        }
-                                        Spacer()
-                                    }
-                                }
-                            }
-                            .aspectRatio(1, contentMode: .fit)
-                            .clipped()
+                        ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { idx, entry in
+                            CollectionEntryThumb(
+                                entry: entry,
+                                settings: settings,
+                                editMode: editMode,
+                                isSelected: selectedForDelete.contains(entry.id)
+                            )
                             .onTapGesture {
                                 if editMode {
                                     if selectedForDelete.contains(entry.id) {
@@ -74,12 +84,34 @@ struct CollectionDetailView: View {
                         }
                     }
                 }
+                .searchable(text: $searchQuery, prompt: "Search tags, source…")
             }
         }
         .navigationTitle(collection.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !entries.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Section("Sort By") {
+                            ForEach(CollectionSortOrder.allCases, id: \.self) { order in
+                                Button {
+                                    if sortOrder == order { sortAscending.toggle() }
+                                    else { sortOrder = order; sortAscending = false }
+                                } label: {
+                                    HStack {
+                                        Text(order.rawValue)
+                                        if sortOrder == order {
+                                            Image(systemName: sortAscending ? "chevron.up" : "chevron.down")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(editMode ? "Done" : "Select") {
                         withAnimation { editMode.toggle() }
@@ -112,7 +144,7 @@ struct CollectionDetailView: View {
     }
 
     private func entryPreview(entry: SavedEntry) -> some View {
-        let wallpapers: [WallpaperItem] = entries.compactMap { e in
+        let wallpapers: [WallpaperItem] = filteredEntries.compactMap { e in
             guard let img = e.imageURL, let thumb = e.thumbnailURL else { return nil }
             return WallpaperItem(id: e.id.uuidString, imageURL: img, thumbnailURL: thumb,
                                  sourceId: e.sourcePluginId, tags: e.tags,
@@ -147,5 +179,65 @@ struct CollectionDetailView: View {
         if let first = entries.first {
             collection.coverImageURL = first.thumbnailURL?.absoluteString ?? ""
         }
+    }
+}
+
+private struct CollectionEntryThumb: View {
+    let entry: SavedEntry
+    let settings: AppSettings
+    let editMode: Bool
+    let isSelected: Bool
+
+    var body: some View {
+        ZStack {
+            CachedImageView(url: entry.thumbnailURL, contentMode: .fill)
+                .aspectRatio(1, contentMode: .fill)
+                .clipped()
+
+            if entry.isNSFW && !settings.nsfwEnabled {
+                Rectangle().fill(.ultraThinMaterial)
+                Image(systemName: "eye.slash.fill")
+                    .foregroundStyle(.white)
+                    .font(.title3)
+            }
+
+            if editMode {
+                Color.black.opacity(0.25)
+                VStack {
+                    HStack {
+                        Spacer()
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(isSelected ? .blue : .white)
+                            .shadow(radius: 2)
+                            .padding(4)
+                    }
+                    Spacer()
+                }
+            }
+
+            // Star badge
+            let stars = settings.rating(for: entry.id.uuidString)
+            if stars > 0 {
+                VStack {
+                    Spacer()
+                    HStack {
+                        HStack(spacing: 1) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 8))
+                            Text("\(stars)")
+                                .font(.system(size: 8, weight: .semibold))
+                        }
+                        .foregroundStyle(.yellow)
+                        .padding(.horizontal, 4).padding(.vertical, 2)
+                        .background(.black.opacity(0.6), in: Capsule())
+                        .padding(4)
+                        Spacer()
+                    }
+                }
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .clipped()
     }
 }

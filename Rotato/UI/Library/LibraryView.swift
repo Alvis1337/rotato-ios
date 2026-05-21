@@ -3,13 +3,19 @@ import SwiftData
 
 struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var collections: [SavedCollection]
+    @Query(sort: \SavedCollection.name) private var collections: [SavedCollection]
     @State private var showNewCollectionAlert = false
     @State private var newCollectionName = ""
     @State private var collectionToDelete: SavedCollection?
     @State private var collectionToRename: SavedCollection?
     @State private var renameText = ""
     @State private var selectedTab = 0
+    @State private var collectionSearch = ""
+
+    private var filteredCollections: [SavedCollection] {
+        if collectionSearch.isEmpty { return collections }
+        return collections.filter { $0.name.localizedCaseInsensitiveContains(collectionSearch) }
+    }
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -31,7 +37,6 @@ struct LibraryView: View {
                     collectionsView
                 } else {
                     HistoryView()
-                        .navigationBarHidden(true)
                 }
             }
             .navigationTitle(selectedTab == 0 ? "Library" : "History")
@@ -91,10 +96,12 @@ struct LibraryView: View {
                     systemImage: "photo.stack",
                     description: Text("Tap + to create your first collection, then save wallpapers from Discover.")
                 )
+            } else if filteredCollections.isEmpty {
+                ContentUnavailableView.search(text: collectionSearch)
             } else {
                 ScrollView {
                     LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(collections) { col in
+                        ForEach(filteredCollections) { col in
                             NavigationLink(destination: CollectionDetailView(collection: col)) {
                                 CollectionCard(collection: col)
                             }
@@ -115,6 +122,7 @@ struct LibraryView: View {
                     }
                     .padding(12)
                 }
+                .searchable(text: $collectionSearch, prompt: "Search collections…")
             }
         }
     }
