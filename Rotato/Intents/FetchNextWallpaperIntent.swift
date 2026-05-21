@@ -12,8 +12,7 @@ import UniformTypeIdentifiers
 struct FetchNextWallpaperIntent: AppIntent {
     static var title: LocalizedStringResource = "Fetch Next Wallpaper"
     static var description = IntentDescription(
-        "Downloads a random wallpaper from your enabled Rotato sources. " +
-        "Chain with 'Set Wallpaper' in a Shortcuts automation to auto-rotate your wallpaper.",
+        "Downloads a random wallpaper from your enabled Rotato sources. Chain with the Set Wallpaper action in a Shortcuts automation to auto-rotate your wallpaper.",
         categoryName: "Wallpaper"
     )
     static var openAppWhenRun: Bool = false
