@@ -1,8 +1,40 @@
 import SwiftUI
+import AppIntents
 
 struct AutoRotationView: View {
+    @State private var isShareSheetPresented = false
+
     var body: some View {
         List {
+            // MARK: - Get Shortcut (primary CTA)
+            Section {
+                VStack(spacing: 14) {
+                    // ShortcutsLink: opens Shortcuts and shows Rotato's actions page
+                    ShortcutsLink()
+                        .shortcutsLinkStyle(.automaticOutline)
+                        .frame(maxWidth: .infinity)
+
+                    // Also let user share/export the pre-built .shortcut file
+                    Button {
+                        isShareSheetPresented = true
+                    } label: {
+                        Label("Share Shortcut File", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.purple)
+                }
+                .padding(.vertical, 4)
+                .sheet(isPresented: $isShareSheetPresented) {
+                    ShareShortcutSheet()
+                }
+            } header: {
+                Text("Install shortcut")
+            } footer: {
+                Text("\"Add to Siri\" installs the shortcut instantly. \"Share\" lets you send the .shortcut file to a friend or your other devices — they just tap it to import.")
+            }
+
+            // MARK: - How it works
             Section {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 12) {
@@ -28,32 +60,23 @@ struct AutoRotationView: View {
                 Text("How it works")
             }
 
+            // MARK: - Setup steps
             Section {
-                StepRow(number: 1, icon: "arrow.down.app", title: "Open Shortcuts",
-                        detail: "Tap the button below to open the Shortcuts app.")
+                StepRow(number: 1, icon: "arrow.down.app", title: "Add the Shortcut",
+                        detail: "Tap \"Add to Siri\" above, or open the shared .shortcut file — then tap \"Add Shortcut\".")
                 StepRow(number: 2, icon: "clock.badge.plus", title: "Create an Automation",
-                        detail: "Tap the Automation tab → + → Time of Day. Set your desired interval (hourly, daily, etc.).")
+                        detail: "Open Shortcuts → Automation tab → + → Time of Day. Set your desired interval.")
                 StepRow(number: 3, icon: "app.badge.fill", title: "Add Rotato Action",
-                        detail: "Tap \"New Blank Automation\" → search for \"Rotato\" → add \"Fetch Next Wallpaper\".")
+                        detail: "Tap \"New Blank Automation\" → search \"Rotato\" → add \"Rotate Wallpaper\" (or \"Fetch Next Wallpaper\").")
                 StepRow(number: 4, icon: "photo.badge.arrow.down", title: "Add Set Wallpaper",
-                        detail: "After the Rotato action, add the \"Set Wallpaper\" action. Set the wallpaper input to \"Shortcut Input\".")
+                        detail: "After the Rotato action, tap + and add \"Set Wallpaper\". The image output is passed automatically.")
                 StepRow(number: 5, icon: "checkmark.seal.fill", title: "Disable Confirmation",
                         detail: "Toggle OFF \"Ask Before Running\" so the automation fires silently in the background.")
             } header: {
                 Text("Setup steps")
             }
 
-            Section {
-                Link(destination: URL(string: "shortcuts://")!) {
-                    Label("Open Shortcuts", systemImage: "arrow.up.right.square")
-                        .foregroundStyle(.blue)
-                }
-            } header: {
-                Text("Launch")
-            } footer: {
-                Text("Requires iOS 16.4+ for fully silent automations. On iOS 16.0–16.3 you may receive a notification tap prompt.")
-            }
-
+            // MARK: - Wallpaper target
             Section {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Home Screen only", systemImage: "house.fill")
@@ -65,12 +88,25 @@ struct AutoRotationView: View {
             } header: {
                 Text("Wallpaper target")
             } footer: {
-                Text("In the \"Set Wallpaper\" Shortcuts action, choose which screen(s) to update.")
+                Text("In the \"Set Wallpaper\" Shortcuts action, choose which screen(s) to update. Requires iOS 16.4+ for fully silent automations.")
             }
         }
         .navigationTitle("Auto-Rotation")
         .navigationBarTitleDisplayMode(.inline)
     }
+}
+
+// MARK: - Share Sheet
+
+/// Wraps UIActivityViewController to share the bundled .shortcut file.
+private struct ShareShortcutSheet: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let url = Bundle.main.url(forResource: "RotatoAutoWallpaper", withExtension: "shortcut")
+        let items: [Any] = url.map { [$0] } ?? ["Could not find the shortcut file."]
+        return UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 // MARK: - Step Row
