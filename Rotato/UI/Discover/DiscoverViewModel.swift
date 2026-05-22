@@ -52,7 +52,7 @@ final class DiscoverViewModel {
     }
 
     func loadMore() async {
-        guard !isLoadingMore, hasMore, !items.isEmpty else { return }
+        guard !isLoadingMore, !isLoading, hasMore, !items.isEmpty else { return }
         // Respect wifi-only setting for auto-triggered loads
         if settings.wifiOnlyDiscover, !(await isOnWiFi()) { return }
         isLoadingMore = true

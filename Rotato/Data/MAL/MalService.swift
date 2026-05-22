@@ -56,7 +56,7 @@ final class MalService: NSObject, ASWebAuthenticationPresentationContextProvidin
             "code_verifier": settings.malCodeVerifier,
             "grant_type": "authorization_code",
             "redirect_uri": redirectURI,
-        ].map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!)" }
+        ].map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value)" }
          .joined(separator: "&")
         request.httpBody = body.data(using: .utf8)
 

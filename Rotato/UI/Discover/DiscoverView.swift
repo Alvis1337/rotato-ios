@@ -60,8 +60,7 @@ struct DiscoverView: View {
         } else {
             let enabledPlugins = PluginRegistry.all.filter { settings.config(for: $0.id).enabled }
             ScrollView {
-                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                    Section {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {                    Section {
                         if showSearchField {
                             HStack {
                                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -137,6 +136,7 @@ struct DiscoverView: View {
                 }
             }
             .refreshable { await vm.load() }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 

@@ -197,6 +197,9 @@ struct FullscreenPreviewView: View {
                     PHAssetChangeRequest.creationRequestForAsset(from: img)
                 }
                 await showToast("Saved to Photos — open Photos to set as wallpaper")
+            } catch let error as PHPhotosError where
+                error.code == .accessUserDenied || error.code == .accessRestricted {
+                await showToast("Photos access denied — enable it in Settings → Privacy")
             } catch {
                 await showToast("Failed to save")
             }

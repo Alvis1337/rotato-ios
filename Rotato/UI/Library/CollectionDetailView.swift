@@ -61,6 +61,10 @@ struct CollectionDetailView: View {
                 )
             } else {
                 ScrollView {
+                    if filteredEntries.isEmpty {
+                        ContentUnavailableView.search(text: searchQuery)
+                            .padding(.top, 60)
+                    } else {
                     LazyVGrid(columns: columns, spacing: 2) {
                         ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { idx, entry in
                             CollectionEntryThumb(
@@ -81,6 +85,7 @@ struct CollectionDetailView: View {
                                 }
                             }
                         }
+                    }
                     }
                 }
                 .searchable(text: $searchQuery, prompt: "Search tags, source…")
@@ -198,12 +203,14 @@ private struct CollectionEntryThumb: View {
     var body: some View {
         ZStack {
             CachedImageView(url: entry.thumbnailURL, contentMode: .fill)
+                .blur(radius: entry.isNSFW && !settings.nsfwEnabled ? 18 : 0)
 
             if entry.isNSFW && !settings.nsfwEnabled {
-                Rectangle().fill(.ultraThinMaterial)
                 Image(systemName: "eye.slash.fill")
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(.white)
-                    .font(.title3)
+                    .shadow(radius: 2)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             if editMode {
