@@ -181,6 +181,7 @@ struct CollectionDetailView: View {
         } else {
             collection.coverImageURL = entries.first?.thumbnailURL?.absoluteString ?? ""
         }
+        try? modelContext.save()
     }
 }
 

@@ -1,5 +1,6 @@
 import Foundation
 import AuthenticationServices
+import CryptoKit
 
 @MainActor
 final class MalService: NSObject, ASWebAuthenticationPresentationContextProviding {
@@ -21,7 +22,7 @@ final class MalService: NSObject, ASWebAuthenticationPresentationContextProvidin
             .init(name: "client_id", value: clientId),
             .init(name: "redirect_uri", value: redirectURI),
             .init(name: "code_challenge", value: challenge),
-            .init(name: "code_challenge_method", value: "plain"),
+            .init(name: "code_challenge_method", value: "S256"),
         ]
         return comps.url
     }
@@ -132,7 +133,14 @@ final class MalService: NSObject, ASWebAuthenticationPresentationContextProvidin
             .replacingOccurrences(of: "=", with: "")
     }
 
-    private func codeChallenge(from verifier: String) -> String { verifier }
+    private func codeChallenge(from verifier: String) -> String {
+        let data = Data(verifier.utf8)
+        let digest = SHA256.hash(data: data)
+        return Data(digest).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
 
     // MARK: - ASWebAuthenticationPresentationContextProviding
 

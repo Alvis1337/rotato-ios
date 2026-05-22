@@ -11,14 +11,15 @@ struct DanbooruPlugin: SourcePlugin {
 
     func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem] {
         var comps = URLComponents(string: "https://danbooru.donmai.us/posts.json")!
-        let tags = buildTags(query: query, configTags: config.tags, nsfw: nsfw)
+        let isAuthenticated = !config.apiKey.isEmpty && !config.apiUser.isEmpty
+        let tags = buildTags(query: query, configTags: config.tags, nsfw: nsfw, authenticated: isAuthenticated)
         comps.queryItems = [
             .init(name: "tags", value: tags),
             .init(name: "limit", value: "30"),
             .init(name: "page", value: "\(page + 1)"),
         ]
         var request = browserRequest(url: comps.url!)
-        if !config.apiKey.isEmpty && !config.apiUser.isEmpty {
+        if isAuthenticated {
             let creds = "\(config.apiUser):\(config.apiKey)".data(using: .utf8)!.base64EncodedString()
             request.setValue("Basic \(creds)", forHTTPHeaderField: "Authorization")
         }
@@ -26,13 +27,15 @@ struct DanbooruPlugin: SourcePlugin {
         return posts.compactMap { mapPost($0) }
     }
 
-    private func buildTags(query: String, configTags: String, nsfw: Bool) -> String {
+    private func buildTags(query: String, configTags: String, nsfw: Bool, authenticated: Bool) -> String {
         var parts: [String] = []
         if !query.isEmpty { parts += normalizeBooruQuery(query).split(separator: " ").map(String.init) }
         if !configTags.isEmpty { parts += configTags.split(separator: " ").map(String.init) }
         if !nsfw { parts.append("rating:general") }
         if parts.isEmpty { parts = ["rating:general"] }
-        return parts.prefix(2).joined(separator: " ")  // Danbooru free tier: max 2 tags
+        // Danbooru free/member tier: max 2 tags; authenticated users get up to 20
+        let limit = authenticated ? 20 : 2
+        return parts.prefix(limit).joined(separator: " ")
     }
 
     private func mapPost(_ p: DanbooruPost) -> WallpaperItem? {

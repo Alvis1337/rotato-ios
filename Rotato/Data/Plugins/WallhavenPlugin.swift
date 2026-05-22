@@ -26,15 +26,17 @@ struct WallhavenPlugin: SourcePlugin {
 
         var request = browserRequest(url: comps.url!)
         let decoded = try await URLSession.shared.decodedData(WallhavenResponse.self, from: request)
-        return decoded.data.map { mapWallpaper($0) }
+        return decoded.data.compactMap { mapWallpaper($0) }
     }
 
-    private func mapWallpaper(_ w: WallhavenWallpaper) -> WallpaperItem {
+    private func mapWallpaper(_ w: WallhavenWallpaper) -> WallpaperItem? {
+        guard let imageURL = URL(string: w.path) else { return nil }
+        let thumbStr = w.thumbs.small ?? w.thumbs.large
+        let thumbURL = URL(string: thumbStr) ?? imageURL
         let tags = w.tags?.map { $0.name } ?? []
-        let thumbURL = URL(string: w.thumbs.small ?? w.thumbs.large)!
         return WallpaperItem(
             id: "WALLHAVEN_\(w.id)",
-            imageURL: URL(string: w.path)!,
+            imageURL: imageURL,
             thumbnailURL: thumbURL,
             sourceId: id,
             tags: Array(tags.prefix(40)),

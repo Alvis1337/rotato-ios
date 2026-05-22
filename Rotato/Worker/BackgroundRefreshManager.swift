@@ -12,7 +12,11 @@ enum BackgroundRefreshManager {
 
     static func register() {
         BGTaskScheduler.shared.register(forTaskWithIdentifier: taskIdentifier, using: nil) { task in
-            handleRefresh(task: task as! BGAppRefreshTask)
+            guard let appRefreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            handleRefresh(task: appRefreshTask)
         }
     }
 
