@@ -10,7 +10,7 @@ struct CachedImageView: View {
 
     var body: some View {
         ZStack {
-            Color(.systemFill)
+            contentMode == .fill ? Color(.systemFill) : Color.clear
             if let image {
                 if contentMode == .fill {
                     Image(uiImage: image)
@@ -23,7 +23,7 @@ struct CachedImageView: View {
                         .scaledToFit()
                 }
             } else if isLoading {
-                shimmerView
+                if contentMode == .fill { shimmerView }
             } else {
                 Image(systemName: "photo")
                     .foregroundStyle(.secondary)

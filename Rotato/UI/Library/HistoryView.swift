@@ -86,5 +86,6 @@ private struct HistoryThumb: View {
         .frame(maxWidth: .infinity)
         .aspectRatio(1, contentMode: .fit)
         .background(Color(.systemFill))
+        .clipped()
     }
 }
