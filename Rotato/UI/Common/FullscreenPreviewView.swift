@@ -16,6 +16,8 @@ struct FullscreenPreviewView: View {
     @State private var saveToast: String?
     @State private var showSaveSheet = false
     @State private var shareImage: UIImage?
+    @State private var isSaving = false
+    @State private var isSharing = false
 
     init(items: [WallpaperItem], initialIndex: Int = 0, onDismiss: @escaping () -> Void) {
         self.items = items
@@ -90,7 +92,7 @@ struct FullscreenPreviewView: View {
                         .background(.ultraThinMaterial, in: Capsule())
                 }
                 Spacer()
-                Text(current.sourceId.capitalized)
+                Text(PluginRegistry.all.first(where: { $0.id == current.sourceId })?.displayName ?? current.sourceId.capitalized)
                     .font(.caption2)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 8).padding(.vertical, 4)
@@ -188,8 +190,10 @@ struct FullscreenPreviewView: View {
     }
 
     private func saveToPhotos() {
-        guard let url = current.imageURL as URL? else { return }
+        guard !isSaving, let url = current.imageURL as URL? else { return }
+        isSaving = true
         Task {
+            defer { isSaving = false }
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 guard let img = UIImage(data: data) else { return }
@@ -207,8 +211,10 @@ struct FullscreenPreviewView: View {
     }
 
     private func share() {
-        guard let url = current.imageURL as URL? else { return }
+        guard !isSharing, let url = current.imageURL as URL? else { return }
+        isSharing = true
         Task {
+            defer { isSharing = false }
             do {
                 let (data, _) = try await URLSession.shared.data(from: url)
                 guard let img = UIImage(data: data) else { return }

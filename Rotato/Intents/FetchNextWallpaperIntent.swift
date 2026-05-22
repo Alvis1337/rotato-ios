@@ -35,9 +35,10 @@ struct FetchNextWallpaperIntent: AppIntent {
             if plugin.id == "REDDIT", !settings.redditSubreddits.isEmpty {
                 config.extraParam = settings.redditSubreddits.randomElement() ?? "wallpapers"
             }
+            let effectiveNsfw = config.nsfwOverride ?? nsfw
 
             let page = Int.random(in: 0..<3)
-            guard let items = try? await plugin.fetch(query: "", page: page, config: config, nsfw: nsfw),
+            guard let items = try? await plugin.fetch(query: "", page: page, config: config, nsfw: effectiveNsfw),
                   let item = items.randomElement() else { continue }
 
             let (data, response) = try await URLSession.shared.data(from: item.imageURL)
@@ -46,7 +47,7 @@ struct FetchNextWallpaperIntent: AppIntent {
 
             // Detect MIME type from data magic bytes for a clean filename
             let ext = imageExtension(for: data)
-            let utType: UTType = ext == "png" ? .png : ext == "webp" ? .webP : .jpeg
+            let utType: UTType = ext == "png" ? .png : ext == "webp" ? .webP : ext == "gif" ? .gif : .jpeg
             let file = IntentFile(data: data, filename: "rotato-wallpaper.\(ext)", type: utType)
             return .result(value: file)
         }

@@ -45,7 +45,7 @@ enum BackgroundRefreshManager {
                 if plugin.id == "REDDIT", !settings.redditSubreddits.isEmpty {
                     config.extraParam = settings.redditSubreddits.randomElement() ?? "wallpapers"
                 }
-                if let items = try? await plugin.fetch(query: "", page: 0, config: config, nsfw: settings.nsfwEnabled),
+                if let items = try? await plugin.fetch(query: "", page: 0, config: config, nsfw: config.nsfwOverride ?? settings.nsfwEnabled),
                    let item = items.randomElement() {
                     UserDefaults.standard.set(item.imageURL.absoluteString, forKey: "prefetched_wallpaper_url")
                 }

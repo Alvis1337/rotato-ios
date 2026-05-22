@@ -229,7 +229,7 @@ private struct CollectionEntryThumb: View {
             }
 
             // Star badge
-            let stars = settings.rating(for: entry.id.uuidString)
+            let stars = settings.rating(for: entry.originalItemId.isEmpty ? entry.id.uuidString : entry.originalItemId)
             if stars > 0 {
                 VStack {
                     Spacer()

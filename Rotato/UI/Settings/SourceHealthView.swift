@@ -41,14 +41,15 @@ struct SourceHealthView: View {
 
             do {
                 let items = try await plugin.fetch(query: "", page: 0, config: config, nsfw: false)
-                result.lastSuccess = Date()
-                result.lastError = nil
-                result.successCount += 1
-                result.totalFetches += 1
-                result.isTesting = false
                 if items.isEmpty {
                     result.lastError = "Fetch succeeded but returned 0 items"
+                } else {
+                    result.lastSuccess = Date()
+                    result.lastError = nil
+                    result.successCount += 1
                 }
+                result.totalFetches += 1
+                result.isTesting = false
             } catch {
                 result.lastError = error.localizedDescription
                 result.totalFetches += 1
@@ -61,6 +62,8 @@ struct SourceHealthView: View {
 
     private func testAll() {
         for plugin in PluginRegistry.all {
+            let config = settings.config(for: plugin.id)
+            guard config.enabled else { continue }
             testPlugin(plugin)
         }
     }

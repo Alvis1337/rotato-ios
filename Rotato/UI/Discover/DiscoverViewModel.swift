@@ -65,7 +65,12 @@ final class DiscoverViewModel {
             } else {
                 let existingIds = Set(items.map { $0.id })
                 let deduped = more.filter { !existingIds.contains($0.id) }
-                items.append(contentsOf: deduped.shuffled())
+                if deduped.isEmpty {
+                    // All new results were duplicates — stop to prevent infinite loop
+                    hasMore = false
+                } else {
+                    items.append(contentsOf: deduped.shuffled())
+                }
             }
         } catch {
             currentPage -= 1

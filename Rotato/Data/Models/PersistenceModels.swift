@@ -28,6 +28,9 @@ final class SavedEntry {
     var height: Int
     var rating: String
     var savedAt: Date
+    /// The source wallpaper ID (e.g. "DANBOORU_12345"). Used as the ratings key so
+    /// ratings are consistent between History (keyed on source ID) and Collections.
+    var originalItemId: String = ""
 
     init(collectionId: UUID, from item: WallpaperItem) {
         self.id = UUID()
@@ -40,6 +43,7 @@ final class SavedEntry {
         self.height = item.height
         self.rating = item.rating
         self.savedAt = Date()
+        self.originalItemId = item.id
     }
 
     var imageURL: URL? { URL(string: imageURLString) }

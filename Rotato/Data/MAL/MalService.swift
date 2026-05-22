@@ -8,6 +8,8 @@ final class MalService: NSObject, ASWebAuthenticationPresentationContextProvidin
 
     private let clientId = "REPLACE_WITH_MAL_CLIENT_ID"
     private let redirectURI = "rotato://callback"
+    /// Retained so ARC doesn't free the session before the OAuth callback fires.
+    private var authSession: ASWebAuthenticationSession?
 
     // MARK: - OAuth2 PKCE
 
@@ -29,15 +31,17 @@ final class MalService: NSObject, ASWebAuthenticationPresentationContextProvidin
 
     func authenticate(settings: AppSettings) async throws {
         guard let authURL = buildAuthURL(settings: settings) else { throw URLError(.badURL) }
-        guard let callbackURL = try? await withCheckedThrowingContinuation({ (cont: CheckedContinuation<URL, Error>) in
-            let session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: "rotato") { url, error in
+        let callbackURL: URL = try await withCheckedThrowingContinuation { cont in
+            let session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: "rotato") { [weak self] url, error in
+                self?.authSession = nil
                 if let url { cont.resume(returning: url) }
                 else { cont.resume(throwing: error ?? URLError(.cancelled)) }
             }
             session.presentationContextProvider = self
             session.prefersEphemeralWebBrowserSession = false
+            authSession = session
             session.start()
-        }) else { throw URLError(.cancelled) }
+        }
 
         guard let code = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false)?
             .queryItems?.first(where: { $0.name == "code" })?.value
@@ -74,7 +78,8 @@ final class MalService: NSObject, ASWebAuthenticationPresentationContextProvidin
             "client_id": clientId,
             "grant_type": "refresh_token",
             "refresh_token": settings.malRefreshToken,
-        ].map { "\($0.key)=\($0.value)" }.joined(separator: "&")
+        ].map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value)" }
+         .joined(separator: "&")
         request.httpBody = body.data(using: .utf8)
 
         let (data, _) = try await URLSession.shared.data(for: request)
@@ -107,7 +112,7 @@ final class MalService: NSObject, ASWebAuthenticationPresentationContextProvidin
                     allTitles += decoded.data
                         .filter { ($0.list_status?.score ?? 0) >= minScore }
                         .map { $0.node.title }
-                    nextURL = nil
+                    nextURL = decoded.paging?.next
                     continue
                 }
                 let decoded = try JSONDecoder().decode(MalAnimeListResponse.self, from: data)

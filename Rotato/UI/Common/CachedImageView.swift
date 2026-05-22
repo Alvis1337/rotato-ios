@@ -60,6 +60,7 @@ struct CachedImageView: View {
         isLoading = true
         image = nil
         guard let url else { isLoading = false; return }
+        let loadingURL = url
 
         // 1. Memory cache
         if let cached = ImageMemoryCache.shared.image(for: url) {
@@ -79,6 +80,11 @@ struct CachedImageView: View {
         // 3. Network
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
+            // Guard: task cancelled or the view has already moved to a different URL
+            guard !Task.isCancelled, self.url == loadingURL else {
+                isLoading = false
+                return
+            }
             if let img = UIImage(data: data) {
                 ImageMemoryCache.shared.set(img, for: url)
                 DiskImageCache.shared.set(data, for: url)

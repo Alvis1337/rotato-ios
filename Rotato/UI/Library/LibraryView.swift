@@ -55,7 +55,8 @@ struct LibraryView: View {
             .alert("New Collection", isPresented: $showNewCollectionAlert) {
                 TextField("Name", text: $newCollectionName)
                 Button("Create") {
-                    let col = SavedCollection(name: newCollectionName.isEmpty ? "Untitled" : newCollectionName)
+                    let trimmed = newCollectionName.trimmingCharacters(in: .whitespaces)
+                    let col = SavedCollection(name: trimmed.isEmpty ? "Untitled" : trimmed)
                     modelContext.insert(col)
                     try? modelContext.save()
                     newCollectionName = ""

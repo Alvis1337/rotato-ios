@@ -108,7 +108,7 @@ struct DiscoverView: View {
                                         selectedItem = item
                                     }
                                     .onAppear {
-                                        if idx == vm.items.count - 8 {
+                                        if idx >= max(vm.items.count - 8, 0) {
                                             Task { await vm.loadMore() }
                                         }
                                     }
@@ -300,7 +300,8 @@ struct SaveToCollectionSheet: View {
             .alert("New Collection", isPresented: $showNewCollectionAlert) {
                 TextField("Name", text: $newCollectionName)
                 Button("Create") {
-                    let col = SavedCollection(name: newCollectionName.isEmpty ? "Untitled" : newCollectionName)
+                    let trimmed = newCollectionName.trimmingCharacters(in: .whitespaces)
+                    let col = SavedCollection(name: trimmed.isEmpty ? "Untitled" : trimmed)
                     modelContext.insert(col)
                     save(to: col)
                     newCollectionName = ""
