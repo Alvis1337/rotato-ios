@@ -94,7 +94,8 @@ final class MalService: NSObject, ASWebAuthenticationPresentationContextProvidin
             var page = 0
             var nextURL: String? = "https://api.myanimelist.net/v2/users/@me/animelist?status=\(status)&fields=list_status&limit=500"
             while let urlStr = nextURL {
-                var request = URLRequest(url: URL(string: urlStr)!)
+                guard let url = URL(string: urlStr) else { break }
+                var request = URLRequest(url: url)
                 request.setValue("Bearer \(settings.malAccessToken)", forHTTPHeaderField: "Authorization")
                 let (data, response) = try await URLSession.shared.data(for: request)
                 if (response as? HTTPURLResponse)?.statusCode == 401 {
