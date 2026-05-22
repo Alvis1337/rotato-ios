@@ -58,7 +58,7 @@ struct GelbooruPlugin: SourcePlugin {
             parts += configTags.split(separator: " ").map(String.init)
         }
         if !nsfw { parts.append("rating:safe") }
-        if parts.isEmpty { parts = ["wallpaper", "rating:safe"] }
+        if parts.isEmpty { parts = nsfw ? ["wallpaper"] : ["wallpaper", "rating:safe"] }
         return parts.joined(separator: " ")
     }
 

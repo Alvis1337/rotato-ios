@@ -143,17 +143,21 @@ struct CollectionDetailView: View {
     }
 
     private func entryPreview(entry: SavedEntry) -> some View {
-        let wallpapers: [WallpaperItem] = filteredEntries.compactMap { e in
-            guard let img = e.imageURL, let thumb = e.thumbnailURL else { return nil }
-            return WallpaperItem(id: e.id.uuidString, imageURL: img, thumbnailURL: thumb,
-                                 sourceId: e.sourcePluginId, tags: e.tags,
-                                 width: e.width, height: e.height, rating: e.rating)
+        // Build wallpapers array and track the index of `entry` simultaneously,
+        // so that entries with invalid URLs removed by compactMap don't cause an
+        // index-out-of-bounds crash in FullscreenPreviewView.
+        var targetIdx = 0
+        var wallpapers: [WallpaperItem] = []
+        for e in filteredEntries {
+            guard let img = e.imageURL, let thumb = e.thumbnailURL else { continue }
+            if e.id == entry.id { targetIdx = wallpapers.count }
+            wallpapers.append(WallpaperItem(id: e.id.uuidString, imageURL: img, thumbnailURL: thumb,
+                                            sourceId: e.sourcePluginId, tags: e.tags,
+                                            width: e.width, height: e.height, rating: e.rating))
         }
-        // Derive index from entry ID so filter changes don't produce a stale index
-        let idx = filteredEntries.firstIndex(where: { $0.id == entry.id }) ?? 0
         return FullscreenPreviewView(
             items: wallpapers,
-            initialIndex: idx,
+            initialIndex: wallpapers.isEmpty ? 0 : min(targetIdx, wallpapers.count - 1),
             onDismiss: { selectedEntry = nil }
         )
     }

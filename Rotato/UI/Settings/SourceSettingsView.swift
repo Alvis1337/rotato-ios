@@ -169,13 +169,7 @@ private struct ExpandedSourceFields: View {
             }
 
             Button("Save") {
-                var config = settings.config(for: plugin.id)
-                config.tags = tags
-                config.apiKey = apiKey
-                config.apiUser = apiUser
-                if plugin.id == "WALLHAVEN" { config.extraParam = purity }
-                config.nsfwOverride = nsfwOverrideEnabled ? nsfwOverrideValue : nil
-                settings.setConfig(config, for: plugin.id)
+                saveConfig()
             }
             .font(.caption)
             .buttonStyle(.bordered)
@@ -190,6 +184,19 @@ private struct ExpandedSourceFields: View {
             nsfwOverrideEnabled = c.nsfwOverride != nil
             nsfwOverrideValue = c.nsfwOverride ?? false
         }
+        .onDisappear {
+            saveConfig()
+        }
+    }
+
+    private func saveConfig() {
+        var config = settings.config(for: plugin.id)
+        config.tags = tags
+        config.apiKey = apiKey
+        config.apiUser = apiUser
+        if plugin.id == "WALLHAVEN" { config.extraParam = purity }
+        config.nsfwOverride = nsfwOverrideEnabled ? nsfwOverrideValue : nil
+        settings.setConfig(config, for: plugin.id)
     }
 }
 
