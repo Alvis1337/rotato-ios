@@ -12,9 +12,16 @@ struct CachedImageView: View {
         ZStack {
             Color(.systemFill)
             if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: contentMode)
+                if contentMode == .fill {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                } else {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                }
             } else if isLoading {
                 shimmerView
             } else {
@@ -22,6 +29,7 @@ struct CachedImageView: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .clipped()
         .task(id: url?.absoluteString) {
             await load()
         }

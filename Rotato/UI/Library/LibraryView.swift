@@ -108,6 +108,7 @@ struct LibraryView: View {
                             NavigationLink(destination: CollectionDetailView(collection: col)) {
                                 CollectionCard(collection: col)
                             }
+                            .buttonStyle(.plain)
                             .contextMenu {
                                 Button {
                                     renameText = col.name

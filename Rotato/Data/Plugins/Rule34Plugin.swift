@@ -3,21 +3,25 @@ import Foundation
 struct Rule34Plugin: SourcePlugin {
     let id = "RULE34"
     let displayName = "Rule34"
-    let description = "R34 community content · API key for higher rate limits · NSFW-only"
+    let description = "rule34.xxx · Requires a free API key from rule34.xxx → My Account → Options · NSFW-only"
     let sfSymbol = "exclamationmark.triangle"
     let requiresApiKey = true
-    let requiresApiUser = true
+    let requiresApiUser = false
     let supportsSearch = true
 
     private static let videoExts = [".mp4", ".webm", ".mkv", ".avi", ".mov"]
 
     func fetch(query: String, page: Int, config: SourceConfig, nsfw: Bool) async throws -> [WallpaperItem] {
+        guard !config.apiKey.isEmpty else {
+            throw SourceError.invalidConfig("Rule34 requires an API key. Get yours at rule34.xxx → My Account → Options.")
+        }
+
         let tags = buildTags(query: query, configTags: config.tags)
         let limit = 30
 
         func makeURL(pid: Int) -> URL {
             var comps = URLComponents(string: "https://api.rule34.xxx/index.php")!
-            var items: [URLQueryItem] = [
+            comps.queryItems = [
                 .init(name: "page", value: "dapi"),
                 .init(name: "s", value: "post"),
                 .init(name: "q", value: "index"),
@@ -25,16 +29,14 @@ struct Rule34Plugin: SourcePlugin {
                 .init(name: "limit", value: "\(limit)"),
                 .init(name: "pid", value: "\(pid)"),
                 .init(name: "tags", value: tags),
+                .init(name: "api_key", value: config.apiKey),
             ]
-            if !config.apiUser.isEmpty { items.append(.init(name: "user_id", value: config.apiUser)) }
-            if !config.apiKey.isEmpty { items.append(.init(name: "api_key", value: config.apiKey)) }
-            comps.queryItems = items
             return comps.url!
         }
 
         // Fetch XML count endpoint to find valid pid range, then pick a random page.
         let safePid: Int
-        if page == 0, let countURL = makeCountURL(tags: tags) {
+        if page == 0, let countURL = makeCountURL(tags: tags, apiKey: config.apiKey) {
             let countReq = browserRequest(url: countURL)
             if let (data, _) = try? await URLSession.shared.data(for: countReq),
                let xml = String(data: data, encoding: .utf8),
@@ -54,7 +56,7 @@ struct Rule34Plugin: SourcePlugin {
         return posts.compactMap { mapPost($0) }
     }
 
-    private func makeCountURL(tags: String) -> URL? {
+    private func makeCountURL(tags: String, apiKey: String) -> URL? {
         var comps = URLComponents(string: "https://api.rule34.xxx/index.php")
         comps?.queryItems = [
             .init(name: "page", value: "dapi"),
@@ -62,6 +64,7 @@ struct Rule34Plugin: SourcePlugin {
             .init(name: "q", value: "index"),
             .init(name: "limit", value: "1"),
             .init(name: "tags", value: tags),
+            .init(name: "api_key", value: apiKey),
         ]
         return comps?.url
     }
