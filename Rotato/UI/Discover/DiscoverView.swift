@@ -9,6 +9,7 @@ struct DiscoverView: View {
     @State private var selectedItem: WallpaperItem?
     @State private var selectedItemIndex = 0
     @State private var showSearchField = false
+    @State private var showHandsFree = false
     @FocusState private var searchFocused: Bool
 
     private let columns = [
@@ -43,6 +44,15 @@ struct DiscoverView: View {
                     items: vm.items,
                     initialIndex: selectedItemIndex,
                     onDismiss: { selectedItem = nil }
+                )
+            }
+        }
+        .fullScreenCover(isPresented: $showHandsFree) {
+            if let vm {
+                HandsFreeSlideshowView(
+                    items: vm.items,
+                    onLoadMore: { await vm.loadMore() },
+                    onDismiss: { showHandsFree = false }
                 )
             }
         }
@@ -81,6 +91,28 @@ struct DiscoverView: View {
                             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
                             .padding(.horizontal, 12).padding(.top, 8)
                             .onAppear { searchFocused = true }
+                        }
+
+                        if showSearchField && vm.searchQuery.contains(" ") {
+                            HStack(spacing: 8) {
+                                Text("Match:")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Picker("", selection: Binding(
+                                    get: { vm.matchAny },
+                                    set: {
+                                        vm.matchAny = $0
+                                        Task { await vm.search() }
+                                    }
+                                )) {
+                                    Text("All (AND)").tag(false)
+                                    Text("Any (OR)").tag(true)
+                                }
+                                .pickerStyle(.segmented)
+                                .frame(maxWidth: 200)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
                         }
 
                         // MAL tag banner
@@ -196,6 +228,15 @@ struct DiscoverView: View {
 
     @ToolbarContentBuilder
     private var toolbarItems: some ToolbarContent {
+        if let vm, !vm.items.isEmpty {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    showHandsFree = true
+                } label: {
+                    Label("Hands Free", systemImage: "play.circle")
+                }
+            }
+        }
         ToolbarItem(placement: .topBarTrailing) {
             Button {
                 withAnimation { showSearchField.toggle() }

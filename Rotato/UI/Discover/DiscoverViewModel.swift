@@ -10,6 +10,7 @@ final class DiscoverViewModel {
     var isLoadingMore = false
     var errorMessage: String?
     var searchQuery = ""
+    var matchAny = false
     var currentPage = 0
     var hasMore = true
     var noResults = false
@@ -84,7 +85,28 @@ final class DiscoverViewModel {
 
     func clearSearch() {
         searchQuery = ""
+        matchAny = false
         Task { await load() }
+    }
+
+    func queryForPlugin(_ pluginId: String) -> String {
+        guard matchAny else { return searchQuery }
+
+        let tokens = searchQuery
+            .split(separator: " ")
+            .map(String.init)
+            .filter { !$0.isEmpty }
+
+        guard tokens.count > 1 else { return searchQuery }
+
+        switch pluginId.uppercased() {
+        case "DANBOORU", "SAFEBOORU":
+            return tokens.map { "~\($0)" }.joined(separator: " ")
+        case "GELBOORU", "RULE34", "YANDERE", "KONACHAN":
+            return "( " + tokens.joined(separator: " ~ ") + " )"
+        default:
+            return tokens.first ?? searchQuery
+        }
     }
 
     /// Toggle a source chip. If we go from N active → 0 active, treat as "all active" again.
@@ -127,8 +149,6 @@ final class DiscoverViewModel {
         let nsfw = settings.nsfwEnabled
         let userQuery = searchQuery
         let malTag = currentMalTag
-        // Use MAL-injected tag when no user query, for plugins that support search
-        let effectiveQuery = userQuery.isEmpty ? malTag : userQuery
 
         let enabledPlugins = PluginRegistry.all.filter { plugin in
             configs[plugin.id]?.enabled == true &&
@@ -144,7 +164,8 @@ final class DiscoverViewModel {
                 if plugin.id == "REDDIT", !settings.redditSubreddits.isEmpty {
                     config.extraParam = settings.redditSubreddits.randomElement() ?? "wallpapers"
                 }
-                let q = plugin.supportsSearch ? effectiveQuery : ""
+                let pluginQuery = userQuery.isEmpty ? malTag : queryForPlugin(plugin.id)
+                let q = plugin.supportsSearch ? pluginQuery : ""
                 // Per-source NSFW override; falls back to global setting
                 let effectiveNsfw = config.nsfwOverride ?? nsfw
                 group.addTask {
