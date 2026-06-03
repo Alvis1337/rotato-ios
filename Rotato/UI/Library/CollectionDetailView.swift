@@ -449,9 +449,9 @@ private func collectionFetchQuery(for pluginId: String, rawTags: String, matchAn
     guard matchAny, tokens.count > 1 else { return tokens.joined(separator: " ") }
 
     switch pluginId {
-    case "DANBOORU":
+    case "DANBOORU", "SAFEBOORU":
         return tokens.map { "~\($0)" }.joined(separator: " ")
-    case "GELBOORU":
+    case "GELBOORU", "RULE34", "YANDERE", "KONACHAN":
         return "( \(tokens.joined(separator: " ~ ")) )"
     default:
         return tokens.first ?? ""
