@@ -20,6 +20,12 @@ struct CollectionDetailView: View {
     @State private var sortOrder: CollectionSortOrder = .dateAdded
     @State private var sortAscending = false
     @State private var searchQuery = ""
+    @State private var showRulesSheet = false
+    @State private var showFillSheet = false
+    @State private var fillRequest = CollectionFillRequest()
+    @State private var isFilling = false
+    @State private var fillProgressMessage = ""
+    @State private var toastMessage: String?
 
     private var filteredEntries: [SavedEntry] {
         var result = entries
@@ -35,14 +41,34 @@ struct CollectionDetailView: View {
             result.sort { sortAscending ? $0.savedAt < $1.savedAt : $0.savedAt > $1.savedAt }
         case .rating:
             result.sort {
-                let r0 = settings.rating(for: $0.id.uuidString)
-                let r1 = settings.rating(for: $1.id.uuidString)
+                let key0 = $0.originalItemId.isEmpty ? $0.id.uuidString : $0.originalItemId
+                let key1 = $1.originalItemId.isEmpty ? $1.id.uuidString : $1.originalItemId
+                let r0 = settings.rating(for: key0)
+                let r1 = settings.rating(for: key1)
                 return sortAscending ? r0 < r1 : r0 > r1
             }
         case .source:
             result.sort { sortAscending ? $0.sourcePluginId < $1.sourcePluginId : $0.sourcePluginId > $1.sourcePluginId }
         }
         return result
+    }
+
+    private var sourceOptions: [SourceOption] {
+        PluginRegistry.all
+            .map { SourceOption(id: $0.id, displayName: $0.displayName, sfSymbol: $0.sfSymbol) }
+            .sorted { $0.displayName < $1.displayName }
+    }
+
+    private var fillSourceOptions: [SourceOption] {
+        sourceOptions.filter { settings.config(for: $0.id).enabled }
+    }
+
+    private var emptyDescription: Text {
+        if collection.isSmartCollection {
+            Text("Use Auto-fill to pull matching saved wallpapers, or tap Fill to fetch more from your sources.")
+        } else {
+            Text("Save wallpapers from Discover or tap Fill to fetch more from your sources.")
+        }
     }
 
     private let columns = [
@@ -56,8 +82,8 @@ struct CollectionDetailView: View {
             if entries.isEmpty {
                 ContentUnavailableView(
                     "Empty Collection",
-                    systemImage: "photo.badge.plus",
-                    description: Text("Save wallpapers from Discover to fill this collection.")
+                    systemImage: collection.isSmartCollection ? "sparkles.square.filled.on.square" : "photo.badge.plus",
+                    description: emptyDescription
                 )
             } else {
                 ScrollView {
@@ -65,27 +91,27 @@ struct CollectionDetailView: View {
                         ContentUnavailableView.search(text: searchQuery)
                             .padding(.top, 60)
                     } else {
-                    LazyVGrid(columns: columns, spacing: 2) {
-                        ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { idx, entry in
-                            CollectionEntryThumb(
-                                entry: entry,
-                                settings: settings,
-                                editMode: editMode,
-                                isSelected: selectedForDelete.contains(entry.id)
-                            )
-                            .onTapGesture {
-                                if editMode {
-                                    if selectedForDelete.contains(entry.id) {
-                                        selectedForDelete.remove(entry.id)
+                        LazyVGrid(columns: columns, spacing: 2) {
+                            ForEach(filteredEntries) { entry in
+                                CollectionEntryThumb(
+                                    entry: entry,
+                                    settings: settings,
+                                    editMode: editMode,
+                                    isSelected: selectedForDelete.contains(entry.id)
+                                )
+                                .onTapGesture {
+                                    if editMode {
+                                        if selectedForDelete.contains(entry.id) {
+                                            selectedForDelete.remove(entry.id)
+                                        } else {
+                                            selectedForDelete.insert(entry.id)
+                                        }
                                     } else {
-                                        selectedForDelete.insert(entry.id)
+                                        selectedEntry = entry
                                     }
-                                } else {
-                                    selectedEntry = entry
                                 }
                             }
                         }
-                    }
                     }
                 }
                 .searchable(text: $searchQuery, prompt: "Search tags, source…")
@@ -94,14 +120,39 @@ struct CollectionDetailView: View {
         .navigationTitle(collection.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if !entries.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Fill") {
+                    showFillSheet = true
+                }
+                .disabled(isFilling)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Section("Collection") {
+                        Button {
+                            showRulesSheet = true
+                        } label: {
+                            Label(collection.isSmartCollection ? "Edit Rules" : "Add Rules", systemImage: "slider.horizontal.3")
+                        }
+
+                        Button {
+                            Task { await autoFillSmartCollection() }
+                        } label: {
+                            Label("Auto-fill", systemImage: "sparkles")
+                        }
+                        .disabled(collection.smartRules.isEmpty || isFilling)
+                    }
+
+                    if !entries.isEmpty {
                         Section("Sort By") {
                             ForEach(CollectionSortOrder.allCases, id: \.self) { order in
                                 Button {
-                                    if sortOrder == order { sortAscending.toggle() }
-                                    else { sortOrder = order; sortAscending = false }
+                                    if sortOrder == order {
+                                        sortAscending.toggle()
+                                    } else {
+                                        sortOrder = order
+                                        sortAscending = false
+                                    }
                                 } label: {
                                     HStack {
                                         Text(order.rawValue)
@@ -112,10 +163,13 @@ struct CollectionDetailView: View {
                                 }
                             }
                         }
-                    } label: {
-                        Image(systemName: "arrow.up.arrow.down")
                     }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
+                .disabled(isFilling)
+            }
+            if !entries.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(editMode ? "Done" : "Select") {
                         withAnimation { editMode.toggle() }
@@ -144,21 +198,49 @@ struct CollectionDetailView: View {
         .fullScreenCover(item: $selectedEntry) { entry in
             entryPreview(entry: entry)
         }
+        .sheet(isPresented: $showRulesSheet) {
+            SmartRulesEditorSheet(
+                collectionName: collection.name,
+                sourceOptions: sourceOptions,
+                initialRules: collection.smartRules
+            ) { rules in
+                collection.smartRules = rules
+                try? modelContext.save()
+                showToast(rules.isEmpty ? "Smart rules cleared" : "Saved \(rules.count) smart rule\(rules.count == 1 ? "" : "s")")
+            }
+        }
+        .sheet(isPresented: $showFillSheet) {
+            FillFromSourcesSheet(
+                request: $fillRequest,
+                sourceOptions: fillSourceOptions,
+                isLoading: isFilling,
+                progressMessage: fillProgressMessage,
+                onFill: startFill
+            )
+        }
+        .overlay(alignment: .bottom) {
+            if let toastMessage {
+                Text(toastMessage)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.black.opacity(0.8), in: Capsule())
+                    .padding(.bottom, 20)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: toastMessage)
         .onAppear { fetchEntries() }
     }
 
     private func entryPreview(entry: SavedEntry) -> some View {
-        // Build wallpapers array and track the index of `entry` simultaneously,
-        // so that entries with invalid URLs removed by compactMap don't cause an
-        // index-out-of-bounds crash in FullscreenPreviewView.
         var targetIdx = 0
         var wallpapers: [WallpaperItem] = []
         for e in filteredEntries {
-            guard let img = e.imageURL, let thumb = e.thumbnailURL else { continue }
+            guard let wallpaper = e.wallpaperItem else { continue }
             if e.id == entry.id { targetIdx = wallpapers.count }
-            wallpapers.append(WallpaperItem(id: e.id.uuidString, imageURL: img, thumbnailURL: thumb,
-                                            sourceId: e.sourcePluginId, tags: e.tags,
-                                            width: e.width, height: e.height, rating: e.rating))
+            wallpapers.append(wallpaper)
         }
         return FullscreenPreviewView(
             items: wallpapers,
@@ -176,6 +258,11 @@ struct CollectionDetailView: View {
         entries = (try? modelContext.fetch(descriptor)) ?? []
     }
 
+    private func syncCoverImage() {
+        collection.coverImageURL = entries.first?.thumbnailURLString ?? ""
+        try? modelContext.save()
+    }
+
     private func deleteSelected() {
         entries
             .filter { selectedForDelete.contains($0.id) }
@@ -184,14 +271,202 @@ struct CollectionDetailView: View {
         selectedForDelete.removeAll()
         editMode = false
         fetchEntries()
-        // Sync cover: clear if no entries remain, otherwise keep it pointing at the first
+        syncCoverImage()
+    }
+
+    private func startFill(_ request: CollectionFillRequest) {
+        Task { await fillFromSources(request) }
+    }
+
+    @MainActor
+    private func autoFillSmartCollection() async {
+        let rules = collection.smartRules
+        guard !rules.isEmpty else {
+            showToast("Add smart rules first")
+            return
+        }
+
+        let existingKeys = Set(entries.map(\.dedupeKey))
+        let descriptor = FetchDescriptor<SavedEntry>(sortBy: [SortDescriptor(\.savedAt, order: .reverse)])
+        let allEntries = (try? modelContext.fetch(descriptor)) ?? []
+
+        var seenKeys = existingKeys
+        var added = 0
+        var firstAddedThumbnail: String?
+
+        for entry in allEntries where rules.matches(entry) {
+            guard !seenKeys.contains(entry.dedupeKey) else { continue }
+            let cloned = SavedEntry(collectionId: collection.id, cloning: entry)
+            modelContext.insert(cloned)
+            seenKeys.insert(cloned.dedupeKey)
+            firstAddedThumbnail = firstAddedThumbnail ?? cloned.thumbnailURLString
+            added += 1
+        }
+
+        try? modelContext.save()
+        fetchEntries()
         if entries.isEmpty {
             collection.coverImageURL = ""
-        } else {
-            collection.coverImageURL = entries.first?.thumbnailURL?.absoluteString ?? ""
+        } else if collection.coverImageURL.isEmpty, let firstAddedThumbnail {
+            collection.coverImageURL = firstAddedThumbnail
         }
         try? modelContext.save()
+
+        showToast(
+            added > 0
+                ? "Auto-fill added \(added) image\(added == 1 ? "" : "s")"
+                : "No new matches found"
+        )
     }
+
+    @MainActor
+    private func fillFromSources(_ request: CollectionFillRequest) async {
+        guard !isFilling else { return }
+        let trimmedTags = request.trimmedTags
+        guard !trimmedTags.isEmpty else { return }
+
+        if request.useMalFilter && settings.malAnimeList.isEmpty {
+            showToast("Load your MAL list first")
+            return
+        }
+
+        let enabledPlugins = PluginRegistry.all.filter { plugin in
+            settings.config(for: plugin.id).enabled && (request.sourceId == nil || request.sourceId == plugin.id)
+        }
+
+        guard !enabledPlugins.isEmpty else {
+            showToast("No enabled sources available")
+            return
+        }
+
+        isFilling = true
+        fillProgressMessage = "Preparing requests…"
+
+        var existingKeys = Set(entries.map(\.dedupeKey))
+        let normalizedMalTitles = Set(settings.malAnimeList.map(normalizeCollectionMatchToken).filter { !$0.isEmpty })
+        let maxPages = max(1, min((request.count / 25) + 2, 5))
+        var added = 0
+        var firstAddedThumbnail: String?
+
+        defer {
+            isFilling = false
+            fillProgressMessage = ""
+            showFillSheet = false
+            fetchEntries()
+            if collection.coverImageURL.isEmpty, let firstAddedThumbnail {
+                collection.coverImageURL = firstAddedThumbnail
+                try? modelContext.save()
+            }
+        }
+
+        for plugin in enabledPlugins {
+            if added >= request.count { break }
+
+            var config = settings.config(for: plugin.id)
+            if plugin.id == "REDDIT", !settings.redditSubreddits.isEmpty {
+                config.extraParam = settings.redditSubreddits.randomElement() ?? config.extraParam
+            }
+
+            let effectiveQuery = plugin.supportsSearch
+                ? collectionFetchQuery(for: plugin.id, rawTags: trimmedTags, matchAny: request.matchAny)
+                : ""
+            let effectiveNsfw = request.nsfwOverride ?? config.nsfwOverride ?? settings.nsfwEnabled
+
+            for page in 0..<maxPages {
+                if added >= request.count { break }
+                fillProgressMessage = "Fetching \(plugin.displayName)…"
+
+                let fetched: [WallpaperItem]
+                do {
+                    fetched = try await plugin.fetch(
+                        query: effectiveQuery,
+                        page: page,
+                        config: config,
+                        nsfw: effectiveNsfw
+                    )
+                } catch {
+                    break
+                }
+
+                if fetched.isEmpty {
+                    break
+                }
+
+                for item in fetched where request.minResolution.matches(item) {
+                    if added >= request.count { break }
+                    if request.useMalFilter,
+                       !matchesMalFilter(item, normalizedMalTitles: normalizedMalTitles) {
+                        continue
+                    }
+
+                    let dedupeKey = item.id.isEmpty ? item.imageURL.absoluteString : item.id
+                    guard !existingKeys.contains(dedupeKey) else { continue }
+
+                    let entry = SavedEntry(collectionId: collection.id, from: item)
+                    modelContext.insert(entry)
+                    existingKeys.insert(entry.dedupeKey)
+                    firstAddedThumbnail = firstAddedThumbnail ?? entry.thumbnailURLString
+                    added += 1
+                }
+            }
+        }
+
+        try? modelContext.save()
+        showToast(
+            added > 0
+                ? "Added \(added) image\(added == 1 ? "" : "s") to \"\(collection.name)\""
+                : "No new images found — try different tags or sources"
+        )
+    }
+
+    private func matchesMalFilter(_ item: WallpaperItem, normalizedMalTitles: Set<String>) -> Bool {
+        guard !normalizedMalTitles.isEmpty else { return false }
+        let normalizedTags = item.tags.map(normalizeCollectionMatchToken)
+        return normalizedTags.contains { tag in
+            normalizedMalTitles.contains { title in
+                tag == title || tag.contains(title)
+            }
+        }
+    }
+
+    private func showToast(_ message: String) {
+        withAnimation { toastMessage = message }
+        Task {
+            try? await Task.sleep(for: .seconds(2.5))
+            guard toastMessage == message else { return }
+            withAnimation { toastMessage = nil }
+        }
+    }
+}
+
+private func collectionFetchQuery(for pluginId: String, rawTags: String, matchAny: Bool) -> String {
+    let tokens = normalizeBooruQuery(rawTags)
+        .split(separator: " ")
+        .map(String.init)
+        .filter { !$0.isEmpty }
+
+    guard !tokens.isEmpty else { return "" }
+    guard matchAny, tokens.count > 1 else { return tokens.joined(separator: " ") }
+
+    switch pluginId {
+    case "DANBOORU":
+        return tokens.map { "~\($0)" }.joined(separator: " ")
+    case "GELBOORU":
+        return "( \(tokens.joined(separator: " ~ ")) )"
+    default:
+        return tokens.first ?? ""
+    }
+}
+
+private func normalizeCollectionMatchToken(_ raw: String) -> String {
+    raw.lowercased()
+        .replacingOccurrences(of: "&", with: "and")
+        .replacingOccurrences(of: "-", with: "_")
+        .replacingOccurrences(of: " ", with: "_")
+        .components(separatedBy: CharacterSet.alphanumerics.inverted.subtracting(CharacterSet(charactersIn: "_")))
+        .joined()
+        .replacingOccurrences(of: "__", with: "_")
+        .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
 }
 
 private struct CollectionEntryThumb: View {
@@ -228,7 +503,6 @@ private struct CollectionEntryThumb: View {
                 }
             }
 
-            // Star badge
             let stars = settings.rating(for: entry.originalItemId.isEmpty ? entry.id.uuidString : entry.originalItemId)
             if stars > 0 {
                 VStack {
@@ -241,7 +515,8 @@ private struct CollectionEntryThumb: View {
                                 .font(.system(size: 8, weight: .semibold))
                         }
                         .foregroundStyle(.yellow)
-                        .padding(.horizontal, 4).padding(.vertical, 2)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
                         .background(.black.opacity(0.6), in: Capsule())
                         .padding(4)
                         Spacer()

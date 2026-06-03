@@ -150,13 +150,23 @@ private struct CollectionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ZStack {
+            ZStack(alignment: .topLeading) {
                 if collection.coverImageURL.isEmpty {
                     Rectangle()
                         .fill(Color(.systemFill))
                         .overlay(Image(systemName: "photo.stack").font(.largeTitle).foregroundStyle(.secondary))
                 } else {
                     CachedImageView(url: URL(string: collection.coverImageURL), contentMode: .fill)
+                }
+
+                if collection.isSmartCollection {
+                    Label("Smart", systemImage: "sparkles")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(.black.opacity(0.65), in: Capsule())
+                        .padding(8)
                 }
             }
             .frame(maxWidth: .infinity)
