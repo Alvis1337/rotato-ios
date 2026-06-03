@@ -28,7 +28,7 @@ final class DiscoverViewModel {
     }
 
     func load() async {
-        guard !isLoading else { return }
+        guard !isLoading, !isLoadingMore else { return }
         isLoading = true
         errorMessage = nil
         noResults = false
@@ -74,7 +74,7 @@ final class DiscoverViewModel {
                 }
             }
         } catch {
-            currentPage -= 1
+            if !isLoading { currentPage -= 1 }
         }
         isLoadingMore = false
     }

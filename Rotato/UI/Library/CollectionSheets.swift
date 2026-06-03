@@ -88,14 +88,14 @@ struct SmartRulesEditorSheet: View {
                     )
                 } else {
                     Section("Rules") {
-                        ForEach(Array(draftRules.indices), id: \.self) { index in
+                        ForEach($draftRules) { $rule in
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack {
-                                    Text("Rule \(index + 1)")
+                                    Text("Rule \((draftRules.firstIndex(where: { $0.id == rule.id }) ?? 0) + 1)")
                                         .font(.headline)
                                     Spacer()
                                     Button(role: .destructive) {
-                                        draftRules.remove(at: index)
+                                        draftRules.removeAll { $0.id == rule.id }
                                     } label: {
                                         Image(systemName: "trash")
                                     }
@@ -104,12 +104,12 @@ struct SmartRulesEditorSheet: View {
                                 Picker(
                                     "Type",
                                     selection: Binding(
-                                        get: { draftRules[index].type },
+                                        get: { rule.type },
                                         set: { newType in
-                                            draftRules[index].type = newType
+                                            $rule.wrappedValue.type = newType
                                             if newType == .source,
-                                               sourceOptions.allSatisfy({ $0.id != draftRules[index].value }) {
-                                                draftRules[index].value = sourceOptions.first?.id ?? ""
+                                               sourceOptions.allSatisfy({ $0.id != rule.value }) {
+                                                $rule.wrappedValue.value = sourceOptions.first?.id ?? ""
                                             }
                                         }
                                     )
@@ -120,21 +120,12 @@ struct SmartRulesEditorSheet: View {
                                 }
                                 .pickerStyle(.segmented)
 
-                                Toggle(
-                                    "Exclude matches",
-                                    isOn: Binding(
-                                        get: { draftRules[index].isExclude },
-                                        set: { draftRules[index].isExclude = $0 }
-                                    )
-                                )
+                                Toggle("Exclude matches", isOn: $rule.isExclude)
 
-                                if draftRules[index].type == .tag {
+                                if rule.type == .tag {
                                     TextField(
                                         "Tag",
-                                        text: Binding(
-                                            get: { draftRules[index].value },
-                                            set: { draftRules[index].value = $0 }
-                                        )
+                                        text: $rule.value
                                     )
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
@@ -146,12 +137,11 @@ struct SmartRulesEditorSheet: View {
                                         "Source",
                                         selection: Binding(
                                             get: {
-                                                if sourceOptions.contains(where: { $0.id == draftRules[index].value }) {
-                                                    return draftRules[index].value
-                                                }
-                                                return sourceOptions.first?.id ?? ""
+                                                sourceOptions.contains(where: { $0.id == rule.value })
+                                                    ? rule.value
+                                                    : (sourceOptions.first?.id ?? "")
                                             },
-                                            set: { draftRules[index].value = $0 }
+                                            set: { $rule.wrappedValue.value = $0 }
                                         )
                                     ) {
                                         ForEach(sourceOptions) { option in

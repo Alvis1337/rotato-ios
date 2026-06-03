@@ -242,11 +242,14 @@ struct CollectionDetailView: View {
             if e.id == entry.id { targetIdx = wallpapers.count }
             wallpapers.append(wallpaper)
         }
-        return FullscreenPreviewView(
+        guard !wallpapers.isEmpty else {
+            return AnyView(Color.clear.onAppear { selectedEntry = nil })
+        }
+        return AnyView(FullscreenPreviewView(
             items: wallpapers,
-            initialIndex: wallpapers.isEmpty ? 0 : min(targetIdx, wallpapers.count - 1),
+            initialIndex: min(targetIdx, wallpapers.count - 1),
             onDismiss: { selectedEntry = nil }
-        )
+        ))
     }
 
     private func fetchEntries() {

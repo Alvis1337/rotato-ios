@@ -32,19 +32,22 @@ struct GelbooruPlugin: SourcePlugin {
             return browserRequest(url: comps.url!)
         }
 
-        // Fetch page 0 to discover total count, then pick a safe random pid.
-        // Without this, a high pid can exceed result count and Gelbooru returns "Too deep!".
-        let page0 = try await URLSession.shared.decodedData(GelbooruResponse.self, from: makeRequest(pid: 0))
-        let count = page0.attributes?.count ?? 0
-        let limit = 30
-        let maxPid = max(0, min((count - 1) / limit, 100))
-        let safePid = page == 0 ? Int.random(in: 0...maxPid) : min(page, maxPid)
-
+        // For page == 0, fetch page 0 to discover total count then pick a safe random pid.
+        // For page > 0, skip the count-discovery request and use the page directly.
         let decoded: GelbooruResponse
-        if safePid == 0 {
-            decoded = page0
+        if page == 0 {
+            let page0 = try await URLSession.shared.decodedData(GelbooruResponse.self, from: makeRequest(pid: 0))
+            let count = page0.attributes?.count ?? 0
+            let limit = 30
+            let maxPid = max(0, min((count - 1) / limit, 100))
+            let safePid = Int.random(in: 0...maxPid)
+            if safePid == 0 {
+                decoded = page0
+            } else {
+                decoded = try await URLSession.shared.decodedData(GelbooruResponse.self, from: makeRequest(pid: safePid))
+            }
         } else {
-            decoded = try await URLSession.shared.decodedData(GelbooruResponse.self, from: makeRequest(pid: safePid))
+            decoded = try await URLSession.shared.decodedData(GelbooruResponse.self, from: makeRequest(pid: min(page, 100)))
         }
         return (decoded.post ?? []).compactMap { mapPost($0) }
     }
