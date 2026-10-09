@@ -35,6 +35,10 @@ Update this when either app gains a feature.
 - Schedules (switch collections on days and times)
 - Sharing a collection as a file, automatic daily backups
 - Hands-free slideshow in Discover
+- Android 2026-10-09 additions: Videos only mode, the photo sources (Bing Daily, Wikimedia
+  Featured, Wallhaven Photos, Unsplash: new BING / WIKIMEDIA / UNSPLASH protocols the iOS
+  app can't install yet), per-site `tagAliases` in manifests, and ML Kit smart crop (iOS uses
+  Vision saliency)
 
 ## Android only
 
