@@ -1,0 +1,18 @@
+{
+  "id": "WALLHAVEN",
+  "name": "Wallhaven",
+  "version": "1.0",
+  "versionCode": 1,
+  "author": "Rotato",
+  "description": "Curated high-resolution wallpapers. API key enables NSFW content.",
+  "protocol": "WALLHAVEN",
+  "defaultBaseUrl": "https://wallhaven.cc",
+  "instanceUrlConfigurable": false,
+  "safeContent": false,
+  "isPremium": true,
+  "auth": {
+    "type": "api_key",
+    "keyLabel": "API Key",
+    "required": false
+  }
+}

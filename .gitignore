@@ -1,0 +1,8 @@
+.DS_Store
+Rotato.xcodeproj/
+RotatoKit/.build/
+RotatoKit/.swiftpm/
+build/
+xcuserdata/
+DerivedData/
+*.ipa

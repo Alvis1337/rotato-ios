@@ -1,0 +1,16 @@
+{
+  "id": "ZEROCHAN",
+  "name": "Zerochan",
+  "version": "1.0",
+  "versionCode": 1,
+  "author": "Rotato",
+  "description": "SFW anime wallpaper search from Zerochan's JSON API.",
+  "protocol": "ZEROCHAN",
+  "defaultBaseUrl": "https://www.zerochan.net",
+  "instanceUrlConfigurable": false,
+  "safeContent": true,
+  "isPremium": false,
+  "auth": {
+    "type": "none"
+  }
+}

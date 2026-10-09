@@ -1,0 +1,26 @@
+{
+  "id": "GELBOORU",
+  "name": "Gelbooru",
+  "version": "1.0",
+  "versionCode": 1,
+  "author": "Rotato",
+  "description": "High-volume anime/game art booru with optional API credentials.",
+  "protocol": "GELBOORU",
+  "defaultBaseUrl": "https://gelbooru.com",
+  "instanceUrlConfigurable": true,
+  "safeContent": false,
+  "isPremium": true,
+  "auth": {
+    "type": "api_key_user_id",
+    "keyLabel": "API Key",
+    "userLabel": "User ID",
+    "required": true
+  },
+  "maxTagCount": 2,
+  "extras": {
+    "response": "object",
+    "count": "json",
+    "imageUrl": "file_url",
+    "ratingTag": "general"
+  }
+}

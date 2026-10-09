@@ -1,0 +1,72 @@
+name: iOS build
+
+# Builds an unsigned Rotato.ipa for sideloading (Sideloadly, AltStore) since the iOS port needs
+# a current Xcode on Apple silicon. Download it from the run's artifacts.
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Check core & build IPA
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use the newest Xcode
+        run: |
+          latest=$(ls -d /Applications/Xcode_*.app | grep -v -i beta | sort -V | tail -1)
+          echo "Using $latest"
+          sudo xcode-select -s "$latest"
+          xcodebuild -version
+
+      - name: Core checks
+        working-directory: RotatoKit
+        run: swift run RotatoChecks
+
+      - name: Generate Xcode project
+        working-directory: .
+        run: |
+          brew install xcodegen
+          xcodegen
+
+      - name: Build unsigned archive
+        working-directory: .
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild archive \
+            -project Rotato.xcodeproj \
+            -scheme Rotato \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/Rotato.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            | tee build/xcodebuild.log | grep -E "error:|warning: .*Rotato|\*\* ARCHIVE" || true
+          test -d build/Rotato.xcarchive/Products/Applications/Rotato.app
+
+      - name: Package IPA
+        working-directory: build
+        run: |
+          mkdir -p Payload
+          cp -R Rotato.xcarchive/Products/Applications/Rotato.app Payload/
+          zip -qry Rotato.ipa Payload
+          ls -lh Rotato.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rotato-ipa
+          path: build/Rotato.ipa
+          retention-days: 30
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-log
+          path: build/xcodebuild.log
+          if-no-files-found: ignore

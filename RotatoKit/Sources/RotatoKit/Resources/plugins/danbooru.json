@@ -1,0 +1,19 @@
+{
+  "id": "DANBOORU",
+  "name": "Danbooru",
+  "version": "1.0",
+  "versionCode": 1,
+  "author": "Rotato",
+  "description": "Large anime art booru. Free accounts limited to 2 search tags.",
+  "protocol": "DANBOORU",
+  "defaultBaseUrl": "https://danbooru.donmai.us",
+  "instanceUrlConfigurable": true,
+  "safeContent": false,
+  "isPremium": true,
+  "auth": {
+    "type": "api_key_user_id",
+    "keyLabel": "API Key",
+    "userLabel": "Username",
+    "required": false
+  }
+}

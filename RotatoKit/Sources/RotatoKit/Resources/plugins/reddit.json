@@ -1,0 +1,16 @@
+{
+  "id": "REDDIT",
+  "name": "Reddit",
+  "version": "1.0",
+  "versionCode": 1,
+  "author": "Rotato",
+  "description": "Fetch images from any public subreddit. Add multiple subreddits as separate sources.",
+  "protocol": "REDDIT",
+  "defaultBaseUrl": "https://www.reddit.com",
+  "instanceUrlConfigurable": false,
+  "safeContent": true,
+  "isPremium": false,
+  "auth": {
+    "type": "none"
+  }
+}

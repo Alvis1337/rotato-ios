@@ -1,0 +1,16 @@
+{
+  "id": "YANDERE",
+  "name": "Yande.re",
+  "version": "1.0",
+  "versionCode": 1,
+  "author": "Rotato",
+  "description": "Anime art archive with high resolution scans (Moebooru). No account needed.",
+  "protocol": "MOEBOORU",
+  "defaultBaseUrl": "https://yande.re",
+  "instanceUrlConfigurable": true,
+  "safeContent": false,
+  "isPremium": true,
+  "auth": {
+    "type": "none"
+  }
+}

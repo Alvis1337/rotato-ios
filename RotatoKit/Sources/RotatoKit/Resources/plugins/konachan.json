@@ -1,0 +1,16 @@
+{
+  "id": "KONACHAN",
+  "name": "Konachan",
+  "version": "1.0",
+  "versionCode": 1,
+  "author": "Rotato",
+  "description": "High-quality anime wallpapers (Moebooru). No account needed.",
+  "protocol": "MOEBOORU",
+  "defaultBaseUrl": "https://konachan.com",
+  "instanceUrlConfigurable": true,
+  "safeContent": true,
+  "isPremium": true,
+  "auth": {
+    "type": "none"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "SAFEBOORU",
+  "name": "Safebooru",
+  "version": "1.0",
+  "versionCode": 1,
+  "author": "Rotato",
+  "description": "Safe-for-work booru board. No account needed.",
+  "protocol": "GELBOORU",
+  "defaultBaseUrl": "https://safebooru.org",
+  "instanceUrlConfigurable": false,
+  "safeContent": true,
+  "isPremium": false,
+  "auth": {
+    "type": "none"
+  },
+  "extras": {
+    "response": "array",
+    "count": "random",
+    "countMax": "200",
+    "imageUrl": "safebooru",
+    "ratingTag": "safe"
+  }
+}

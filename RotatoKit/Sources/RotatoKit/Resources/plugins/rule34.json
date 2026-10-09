@@ -1,0 +1,27 @@
+{
+  "id": "RULE34",
+  "name": "Rule34",
+  "version": "1.0",
+  "versionCode": 1,
+  "author": "Rotato",
+  "description": "Rule34 booru. Requires a free account — get your User ID and API Key from rule34.xxx account options.",
+  "protocol": "GELBOORU",
+  "defaultBaseUrl": "https://api.rule34.xxx",
+  "instanceUrlConfigurable": false,
+  "safeContent": false,
+  "isPremium": false,
+  "auth": {
+    "type": "api_key_user_id",
+    "keyLabel": "API Key",
+    "userLabel": "User ID",
+    "required": true
+  },
+  "extras": {
+    "response": "array",
+    "count": "xml",
+    "imageUrl": "file_url",
+    "ratingTag": "safe",
+    "adultOnly": "true",
+    "pageUrlTemplate": "https://rule34.xxx/index.php?page=post&s=view&id={id}"
+  }
+}
