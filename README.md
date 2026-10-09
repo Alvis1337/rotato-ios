@@ -13,9 +13,12 @@ A SwiftUI port of [Rotato for Android](https://github.com/Alvis1337/rotato). iOS
 | `App/`, `Widget/` | App entry point, App Shortcuts, home-screen widget |
 | `project.yml` | XcodeGen spec for `Rotato.xcodeproj` |
 
+See [PARITY.md](PARITY.md) for what's ported from Android and what isn't yet.
+
 ## Install a build
 
-Every push builds an unsigned `Rotato.ipa` in GitHub Actions (Actions → iOS build → the run's
+Download the IPA from the [latest release](https://github.com/Alvis1337/rotato-ios/releases/latest)
+(or, for the newest commit, from any run's artifacts under Actions → iOS build). Every push builds an unsigned `Rotato.ipa` in GitHub Actions (Actions → iOS build → the run's
 artifacts). Install it with [Sideloadly](https://sideloadly.io) or AltStore, which sign it with
 your Apple ID. Free Apple IDs need a re-sign every 7 days.
 
