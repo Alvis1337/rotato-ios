@@ -301,8 +301,13 @@ struct TagChip: View {
 
 extension View {
     /// A menu that looks like the dock's other buttons: no border or chevron on any platform.
+    @ViewBuilder
     func dockMenuStyle() -> some View {
+        #if os(macOS)
+        menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+        #else
         menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden).fixedSize()
+        #endif
     }
 }
 

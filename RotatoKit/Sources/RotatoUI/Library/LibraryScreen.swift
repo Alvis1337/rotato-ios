@@ -371,7 +371,7 @@ struct RotationStatusCard: View {
                 Spacer()
                 if model.isSyncingPool { ProgressView().controlSize(.small) }
                 if !set {
-                    NavigationLink { ShortcutsSetupView() } label: {
+                    NavigationLink { ShortcutsSetupView().toolbar(.visible, for: .automatic) } label: {
                         Text("Set up").font(.subheadline.weight(.semibold))
                             .padding(.horizontal, 12).padding(.vertical, 6)
                             .background(.white.opacity(0.25), in: Capsule())

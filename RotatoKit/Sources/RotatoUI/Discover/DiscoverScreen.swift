@@ -12,6 +12,7 @@ public struct DiscoverScreen: View {
     @State private var showSettings = false
     @State private var viewerStart: ViewerStart?
     @State private var showHealth = false
+    @State private var showSources = false
     private let searchRequest = DiscoverSearchRequest.shared
 
     public init() {}
@@ -32,7 +33,8 @@ public struct DiscoverScreen: View {
                 .overlay { stateOverlay }
                 .overlay(alignment: .bottomTrailing) { floatingButtons(proxy) }
             }
-            .navigationDestination(for: String.self) { _ in SourcesScreen() }
+            .navigationDestination(for: String.self) { _ in SourcesScreen().toolbar(.visible, for: .automatic) }
+            .navigationDestination(isPresented: $showSources) { SourcesScreen().toolbar(.visible, for: .automatic) }
             .sheet(isPresented: $searching) {
                 DiscoverSearchSheet(current: feed.query, suggestions: suggestions) { q in feed.reset(query: q) }
             }
@@ -86,7 +88,8 @@ public struct DiscoverScreen: View {
             .buttonStyle(.plain)
             Menu {
                 Button { showHealth = true } label: { Label("Source health", systemImage: "stethoscope") }
-                NavigationLink(value: "sources") { Label("Manage sources", systemImage: "server.rack") }
+                // A button, not a NavigationLink: links inside menus don't navigate on every platform.
+                Button { showSources = true } label: { Label("Manage sources", systemImage: "server.rack") }
             } label: {
                 Image(systemName: "ellipsis").font(.title3).frame(width: 32, height: 40)
             }
