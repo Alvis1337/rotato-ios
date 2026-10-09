@@ -21,5 +21,7 @@ let package = Package(
         // finds intents built into the app itself); this target exists so they're type-checked here.
         .target(name: "RotatoIntents", dependencies: ["RotatoKit"]),
         .executableTarget(name: "RotatoChecks", dependencies: ["RotatoKit"]),
+        // The iPhone screens in a Mac window, for trying the app without Xcode.
+        .executableTarget(name: "RotatoPreview", dependencies: ["RotatoKit", "RotatoUI"]),
     ]
 )

@@ -49,6 +49,18 @@ the app walks through it. "Set now" buttons queue the image and run that shortcu
 There's no iOS equivalent for live wallpaper, the screen saver, Quick Settings tiles, foldable
 features or Tasker hooks, so those weren't ported.
 
+## Trying it on a Mac
+
+```sh
+cd RotatoKit && swift run RotatoPreview
+```
+
+Opens the iPhone screens in a phone-sized Mac window, with no Xcode needed (Command Line Tools
+are enough, Intel or Apple silicon). Discover, collections, the Library, sources and settings all
+work against real data. Shortcuts, the widget and Face ID are iOS-only, controls take macOS
+styling, and "Set now" can't change the Mac's wallpaper. Its data lives in
+`~/Library/Application Support/Rotato`.
+
 ## Checking the core without Xcode
 
 ```sh
