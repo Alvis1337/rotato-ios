@@ -49,7 +49,7 @@ struct NowShowingCard: View {
         return VStack(spacing: 4) {
             Group {
                 if let file {
-                    LocalImage(file, maxPixel: 300).nsfwBlur(model.state.nsfwFileNames.contains(file.lastPathComponent))
+                    LocalImage(file, maxPixel: 300).nsfwBlur(model.state.nsfwFileNames.contains(file.lastPathComponent), key: file.lastPathComponent)
                 } else {
                     Rectangle().fill(.quaternary).overlay(Image(systemName: "iphone").foregroundStyle(.secondary))
                 }
@@ -79,7 +79,6 @@ struct PoolViewer: View {
             TabView(selection: $current) {
                 ForEach(files, id: \.self) { f in
                     LocalImage(f, maxPixel: 2400, contentMode: .fit)
-                        .nsfwBlur(model.state.nsfwFileNames.contains(f.lastPathComponent))
                         .tag(f)
                 }
             }
@@ -218,7 +217,7 @@ struct HistoryView: View {
                     }
                     .frame(width: 44, height: 78)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .nsfwBlur(model.state.nsfwFileNames.contains(item.poolFile))
+                    .nsfwBlur(model.state.nsfwFileNames.contains(item.poolFile), key: item.poolFile)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(item.screen == .home ? "Home Screen" : "Lock Screen").font(.subheadline.weight(.medium))
                         Text(Date(timeIntervalSince1970: Double(item.timestamp) / 1000), format: .dateTime.month().day().hour().minute())

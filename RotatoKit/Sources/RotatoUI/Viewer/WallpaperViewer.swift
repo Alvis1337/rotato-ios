@@ -137,7 +137,6 @@ struct WallpaperPage: View {
                 ZoomableImage(url: wallpaper.fullUrl.ifBlank(wallpaper.sampleUrl), preview: wallpaper.gridUrl)
             }
         }
-        .nsfwBlur(wallpaper.isNsfw, exempt: exemptBlur)
     }
 }
 

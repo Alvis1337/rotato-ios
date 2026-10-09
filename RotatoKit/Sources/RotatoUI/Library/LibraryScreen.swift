@@ -442,7 +442,7 @@ struct PoolTile: View {
         let queued = model.state.queuedNext.contains { $0.poolFile == name }
         Color.clear
             .aspectRatio(0.8, contentMode: .fit)
-            .overlay { LocalImage(file, maxPixel: 400).nsfwBlur(model.state.nsfwFileNames.contains(name)) }
+            .overlay { LocalImage(file, maxPixel: 400).nsfwBlur(model.state.nsfwFileNames.contains(name), key: name) }
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(alignment: .bottomLeading) {
                 Text(PoolTile.caption(file))

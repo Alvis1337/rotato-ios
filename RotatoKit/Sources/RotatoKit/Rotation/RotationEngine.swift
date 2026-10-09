@@ -107,6 +107,13 @@ public struct RotationEngine: Sendable {
         for screen: WallpaperScreen, settings: RotatoSettings, state: RotatoState,
         lists: [WallpaperCollection], entries: [CollectionEntry], files: [URL], nowMs: Int64
     ) -> [URL] {
+        // Stealth mode: only the stealth collection, and never anything NSFW.
+        if settings.stealthActive, !settings.stealthCollectionId.isEmpty {
+            let stealth = entries.filter { $0.listId == settings.stealthCollectionId && !$0.isNsfw }
+                .compactMap { pool.file(for: $0.source, sourceId: $0.sourceId, in: files) }
+                .filter { !state.nsfwFileNames.contains($0.lastPathComponent) }
+            if !stealth.isEmpty { return stealth }
+        }
         let rotationLists = lists.filter(\.useAsRotation)
         // Per-collection intervals: lists on cooldown sit out, unless every list is on cooldown.
         let ready = rotationLists.filter { l in

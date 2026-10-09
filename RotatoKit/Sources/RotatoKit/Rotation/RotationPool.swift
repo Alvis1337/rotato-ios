@@ -98,7 +98,11 @@ public struct RotationPool: Sendable {
     @discardableResult
     public func syncRotationCollections(limit: Int = .max) async -> Int {
         let existing = files()
-        let missing = CollectionsRepository(db: db).rotationEntries()
+        // The stealth collection is downloaded too, so stealth mode has something to show.
+        let settings = db.read(DataFiles.settings)
+        let repo = CollectionsRepository(db: db)
+        let stealth = settings.stealthCollectionId.isEmpty ? [] : repo.entries(in: settings.stealthCollectionId)
+        let missing = (repo.rotationEntries() + stealth)
             .filter { !$0.fullUrl.isBlank && !$0.isVideo && file(for: $0.source, sourceId: $0.sourceId, in: existing) == nil }
         var seen = Set<String>()
         let todo = missing.filter { seen.insert($0.poolKey).inserted }.prefix(limit)

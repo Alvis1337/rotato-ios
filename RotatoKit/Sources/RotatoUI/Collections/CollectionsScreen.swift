@@ -1,3 +1,4 @@
+import PhotosUI
 import RotatoKit
 import SwiftUI
 
@@ -12,6 +13,9 @@ public struct CollectionsScreen: View {
     @State private var merging: WallpaperCollection?
     @State private var deleting: WallpaperCollection?
     @State private var editingSettings: WallpaperCollection?
+    @State private var filling: WallpaperCollection?
+    @State private var addingPhotosTo: WallpaperCollection?
+    @State private var photoPicks: [PhotosPickerItem] = []
 
     public init(onSearchDiscover: @escaping (String) -> Void = { _ in }) {
         self.onSearchDiscover = onSearchDiscover
@@ -55,6 +59,25 @@ public struct CollectionsScreen: View {
             }
             .sheet(isPresented: $creating) { NewCollectionSheet() }
             .sheet(item: $editingSettings) { c in CollectionSettingsSheet(collectionId: c.id) }
+            .sheet(item: $filling) { c in
+                FillSheet(collection: c) { tags, count, pluginId, instanceId in
+                    Task { await model.fill(c, tags: tags, count: count, pluginId: pluginId, instanceId: instanceId) }
+                }
+            }
+            .photosPicker(
+                isPresented: Binding(get: { addingPhotosTo != nil }, set: { if !$0 && photoPicks.isEmpty { addingPhotosTo = nil } }),
+                selection: $photoPicks, matching: .images
+            )
+            .onChange(of: photoPicks) { _, items in
+                guard let target = addingPhotosTo, !items.isEmpty else { return }
+                Task {
+                    var datas: [Data] = []
+                    for i in items { if let d = try? await i.loadTransferable(type: Data.self) { datas.append(d) } }
+                    model.importPhotos(datas, into: target)
+                    photoPicks = []
+                    addingPhotosTo = nil
+                }
+            }
             .sheet(item: $merging) { c in
                 CollectionPicker(title: "Merge \"\(c.name)\" into…", excluding: [c.id]) { target in
                     let moved = model.collectionsRepo.merge(c.id, into: target.id)
@@ -92,39 +115,29 @@ public struct CollectionsScreen: View {
     }
 
     private var lockedBanner: some View {
-        Button {
-            Task { _ = await model.unlockLocked() }
-        } label: {
-            Label("\(model.lockedHiddenCount) locked collection\(model.lockedHiddenCount == 1 ? "" : "s") hidden. Tap to unlock.", systemImage: "lock.fill")
+        HStack {
+            Label("\(model.lockedHiddenCount) locked collection\(model.lockedHiddenCount == 1 ? "" : "s") hidden", systemImage: "lock.fill")
                 .font(.subheadline)
-                .frame(maxWidth: .infinity)
-                .padding(12)
-                .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
+            Spacer()
+            Button("Unlock") { Task { _ = await model.unlockLocked() } }
+                .font(.subheadline.weight(.semibold))
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
         }
-        .buttonStyle(.plain)
+        .padding(12)
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 12))
         .padding([.horizontal, .top])
     }
 
-    @ViewBuilder
     private func menu(for list: WallpaperCollection) -> some View {
-        Button {
-            model.modifyCollection(list.id) { $0.useAsRotation.toggle() }
-            model.showToast(list.useAsRotation ? "Removed from rotation" : "Added to rotation")
-        } label: {
-            Label(list.useAsRotation ? "Stop rotating" : "Use for rotation", systemImage: "arrow.triangle.2.circlepath")
-        }
-        Button { editingSettings = list } label: { Label("Settings", systemImage: "slider.horizontal.3") }
-        Button { renaming = list } label: { Label("Rename", systemImage: "pencil") }
-        Menu {
-            Button { model.collectionsRepo.move(list.id, by: -1); model.reload() } label: { Label("Earlier", systemImage: "arrow.left") }
-            Button { model.collectionsRepo.move(list.id, by: 1); model.reload() } label: { Label("Later", systemImage: "arrow.right") }
-        } label: {
-            Label("Move", systemImage: "arrow.left.arrow.right")
-        }
-        Button { merging = list } label: { Label("Merge into…", systemImage: "arrow.triangle.merge") }
-            .disabled(model.visibleCollections.count < 2)
-        Divider()
-        Button(role: .destructive) { deleting = list } label: { Label("Delete", systemImage: "trash") }
+        CollectionMenu(
+            collection: list,
+            onAddPhotos: { addingPhotosTo = list },
+            onFill: { filling = list },
+            onRename: { renaming = list },
+            onMerge: { merging = list },
+            onDelete: { deleting = list }
+        )
     }
 }
 
@@ -193,7 +206,7 @@ struct CollectionCard<Menu: View>: View {
     private func cover(_ entries: [CollectionEntry]) -> some View {
         if !collection.coverUrl.isBlank {
             RemoteImage(collection.coverUrl, maxPixel: 500)
-                .nsfwBlur(entries.first { $0.thumbUrl == collection.coverUrl || $0.fullUrl == collection.coverUrl }?.isNsfw ?? false, exempt: collection.blurExempt)
+                .nsfwBlur(entries.first { $0.thumbUrl == collection.coverUrl || $0.fullUrl == collection.coverUrl }?.isNsfw ?? false, key: collection.coverUrl, exempt: collection.blurExempt)
         } else if entries.isEmpty {
             Rectangle().fill(.quaternary)
                 .overlay(Image(systemName: collection.isSmartCollection ? "wand.and.stars" : "photo.stack").font(.largeTitle).foregroundStyle(.secondary))
@@ -212,7 +225,7 @@ struct CollectionCard<Menu: View>: View {
 
     private func tile(_ e: CollectionEntry) -> some View {
         Color.clear.overlay {
-            RemoteImage(e.thumbUrl.ifBlank(e.sampleUrl), maxPixel: 300).nsfwBlur(e.isNsfw, exempt: collection.blurExempt)
+            RemoteImage(e.thumbUrl.ifBlank(e.sampleUrl), maxPixel: 300).nsfwBlur(e.isNsfw, key: "\(e.source):\(e.sourceId)", exempt: collection.blurExempt)
         }
         .clipped()
     }

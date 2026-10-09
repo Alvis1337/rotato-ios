@@ -118,6 +118,18 @@ db.update(DataFiles.settings) { $0.autoPause = AutoPauseSettings(nightEnabled: t
 let before = db.read(DataFiles.state).current(for: .home)?.poolFile
 let paused = try engine.next(for: .home, automatic: true, now: Calendar.current.date(bySettingHour: 23, minute: 30, second: 0, of: Date())!)
 check(paused.paused && paused.file.lastPathComponent == before, "night auto-pause keeps current")
+print("Stealth mode")
+db.update(DataFiles.settings) { $0.autoPause = AutoPauseSettings(); $0.shuffleMode = true; $0.nsfwMode = true }
+let stealthList = repo.create(name: "Stealth")!
+repo.add(entries: [CollectionEntry(listId: stealthList.id, sourceId: "mid", source: "device", thumbUrl: "x", fullUrl: "x")])
+db.update(DataFiles.state) { $0.nsfwFileNames = [] }
+db.update(DataFiles.settings) { $0.stealthCollectionId = stealthList.id; $0.stealthActive = true }
+for _ in 0..<4 { let f = try engine.next(for: .home, automatic: false).file; check(f.lastPathComponent == "mid.jpg", "stealth rotates only its collection") }
+check(!db.read(DataFiles.settings).effectiveNsfw, "stealth forces NSFW off")
+db.update(DataFiles.settings) { $0.stealthActive = false }
+check(db.read(DataFiles.settings).effectiveNsfw, "NSFW back after stealth")
+db.update(DataFiles.settings) { $0.nsfwMode = false }
+
 let looks = ImageAnalysis.brightness(of: pool.files(), db: db)
 check((looks["dark.jpg"] ?? 1) < ImageAnalysis.darkThreshold && (looks["light.jpg"] ?? 0) > 0.8, "brightness analysis")
 

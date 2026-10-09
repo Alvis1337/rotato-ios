@@ -86,6 +86,28 @@ public struct SaveCurrentWallpaperIntent: AppIntent {
     }
 }
 
+/// Stealth mode on or off: rotation switches entirely to the stealth collection and NSFW is
+/// forced off (the Quick Settings tile on Android).
+public struct SetStealthModeIntent: SetValueIntent {
+    public static let title: LocalizedStringResource = "Set Stealth Mode"
+    public static let description = IntentDescription(
+        "Switches rotation entirely to your stealth collection and turns NSFW off, until you switch it back.",
+        categoryName: "Privacy"
+    )
+
+    @Parameter(title: "Stealth Mode")
+    public var value: Bool
+
+    public init() {}
+
+    public func perform() async throws -> some IntentResult {
+        RotatoDatabase.shared.update(DataFiles.settings) { s in
+            s.stealthActive = value && !s.stealthCollectionId.isEmpty
+        }
+        return .result()
+    }
+}
+
 /// Removes what's showing from rotation and keeps it from being added again.
 public struct BlockCurrentWallpaperIntent: AppIntent {
     public static let title: LocalizedStringResource = "Block Current Wallpaper"

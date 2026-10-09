@@ -124,11 +124,18 @@ public struct RotatoSettings: Codable, Hashable, Sendable {
 
     /// Name of the user's Shortcuts shortcut that Rotato runs for "Set now".
     public var shortcutName: String = "Rotato"
+    /// Collection Discover's Save button saves to ("Save to list"); blank = Favorites.
+    public var saveToListId: String = ""
+
+    // Stealth mode: rotation draws only from this collection and NSFW is forced off until it's
+    // switched off again (the Quick Settings tile on Android, a Control Center control here).
+    public var stealthCollectionId: String = ""
+    public var stealthActive: Bool = false
 
     public init() {}
 
-    /// Effective NSFW mode: always off while the content filter hides NSFW features.
-    public var effectiveNsfw: Bool { nsfwMode && !nsfwHidden }
+    /// Effective NSFW mode: off while the content filter hides NSFW features or stealth is on.
+    public var effectiveNsfw: Bool { nsfwMode && !nsfwHidden && !stealthActive }
     /// Blur stays on as a safety net while NSFW features are hidden.
     public var effectiveBlur: Bool { nsfwBlurEnabled || nsfwHidden }
 
@@ -136,7 +143,7 @@ public struct RotatoSettings: Codable, Hashable, Sendable {
         case setupDone, shuffleMode, wallpaperFit, wallpaperEffects, videoPreviewMode, autoPause, matchTimeOfDay, themeMode
         case nsfwMode, nsfwHidden, nsfwBlurEnabled, nsfwHomeOnly, globalBlacklist
         case filters, discoverBatchSize, discoverDataSaver, forYouEnabled, pinnedSearches, discoverHintSeen
-        case shortcutName
+        case shortcutName, saveToListId, stealthCollectionId, stealthActive
     }
 
     public init(from decoder: Decoder) throws {
@@ -162,6 +169,9 @@ public struct RotatoSettings: Codable, Hashable, Sendable {
         pinnedSearches = c.value(.pinnedSearches, d.pinnedSearches)
         discoverHintSeen = c.value(.discoverHintSeen, d.discoverHintSeen)
         shortcutName = c.value(.shortcutName, d.shortcutName)
+        saveToListId = c.value(.saveToListId, d.saveToListId)
+        stealthCollectionId = c.value(.stealthCollectionId, d.stealthCollectionId)
+        stealthActive = c.value(.stealthActive, d.stealthActive)
     }
 }
 

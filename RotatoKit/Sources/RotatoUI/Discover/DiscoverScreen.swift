@@ -40,9 +40,10 @@ public struct DiscoverScreen: View {
             }
             .sheet(isPresented: $showSettings) {
                 NavigationStack {
-                    DiscoverSettingsView()
+                    DiscoverSheet()
                         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showSettings = false } } }
                 }
+                .presentationDetents([.medium, .large])
             }
             .sheet(isPresented: $showHealth) { NavigationStack { SourceHealthView(health: feed.health) } }
             .fullScreen(item: $viewerStart) { start in
@@ -108,25 +109,7 @@ public struct DiscoverScreen: View {
                 .padding(.horizontal)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    ForEach(chipSources) { s in
-                        let m = model.manifest(for: s)
-                        let missingKey = (m?.requiresCredentials ?? false) && s.apiKey.isBlank
-                        Button {
-                            model.modifySource(s) { $0.enabled.toggle() }
-                        } label: {
-                            HStack(spacing: 4) {
-                                if s.enabled { Image(systemName: "checkmark").font(.caption2.bold()) }
-                                Text(s.instanceId.isEmpty ? (m?.name ?? s.pluginId.capitalized) : "r/\(s.instanceId)")
-                                if missingKey { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red) }
-                                else if (m?.needsApiKey ?? false) && !s.apiKey.isBlank { Image(systemName: "key.fill").opacity(0.5) }
-                            }
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 12).padding(.vertical, 7)
-                            .background(s.enabled ? Color.rotatoAccent.opacity(0.22) : .clear, in: Capsule())
-                            .overlay(Capsule().stroke(s.enabled ? Color.rotatoAccent.opacity(0.6) : .secondary.opacity(0.4)))
-                        }
-                        .buttonStyle(.plain)
-                    }
+                    ForEach(chipSources) { s in SourceChip(source: s) }
                     NavigationLink(value: "sources") {
                         Image(systemName: "plus").font(.caption.bold())
                             .frame(width: 30, height: 30)
@@ -302,6 +285,49 @@ public struct DiscoverScreen: View {
     }
 }
 
+/// A source as a chip: tap to switch it on or off for Discover. With NSFW on (or an override
+/// set) the eye cycles the source's own NSFW setting: inherit → on → off.
+struct SourceChip: View {
+    @Environment(AppModel.self) private var model
+    let source: SourceConfig
+
+    var body: some View {
+        let s = source
+        let m = model.manifest(for: s)
+        let missingKey = (m?.requiresCredentials ?? false) && s.apiKey.isBlank
+        let showEye = !model.settings.nsfwHidden && (model.settings.nsfwMode || s.nsfwEnabled != nil)
+        HStack(spacing: 4) {
+            Button {
+                model.modifySource(s) { $0.enabled.toggle() }
+            } label: {
+                HStack(spacing: 4) {
+                    if s.enabled { Image(systemName: "checkmark").font(.caption2.bold()) }
+                    Text(s.instanceId.isEmpty ? (m?.name ?? s.pluginId.capitalized) : "r/\(s.instanceId)")
+                    if missingKey {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red).accessibilityLabel("API key missing")
+                    } else if (m?.needsApiKey ?? false) && !s.apiKey.isBlank {
+                        Image(systemName: "key.fill").opacity(0.5).accessibilityLabel("API key set")
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            if showEye {
+                Button { model.cycleSourceNsfw(s) } label: {
+                    Image(systemName: s.nsfwEnabled == nil ? "eye" : s.nsfwEnabled == true ? "eye.fill" : "eye.slash.fill")
+                        .font(.caption2)
+                        .opacity(s.nsfwEnabled == nil ? 0.6 : 1)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(s.nsfwEnabled == nil ? "Inherit global NSFW" : s.nsfwEnabled == true ? "NSFW enabled for this source" : "NSFW disabled for this source")
+            }
+        }
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 12).padding(.vertical, 7)
+        .background(s.enabled ? Color.rotatoAccent.opacity(0.22) : .clear, in: Capsule())
+        .overlay(Capsule().stroke(s.enabled ? Color.rotatoAccent.opacity(0.6) : .secondary.opacity(0.4)))
+    }
+}
+
 /// A grid tile with the source badge (bottom left) and saved/video marks.
 struct GridTile: View {
     let wallpaper: Wallpaper
@@ -314,7 +340,7 @@ struct GridTile: View {
             .aspectRatio(ratio, contentMode: .fit)
             .overlay {
                 RemoteImage(dataSaver ? wallpaper.dataSaverUrl : wallpaper.gridUrl, preview: wallpaper.lowResPreviewUrl, maxPixel: 600)
-                    .nsfwBlur(wallpaper.isNsfw)
+                    .nsfwBlur(wallpaper.isNsfw, key: wallpaper.key, compact: ratio == 1)
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(alignment: .bottomLeading) {
@@ -333,6 +359,79 @@ struct GridTile: View {
                 .padding(6)
             }
             .contentShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+/// Discover Settings (the ⚙️ sheet on Android): where Save goes, NSFW, For you and the filters.
+struct DiscoverSheet: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Save to list", selection: Binding(
+                    get: { model.saveTarget?.id ?? "" },
+                    set: { id in model.updateSettings { $0.saveToListId = id } }
+                )) {
+                    if model.saveTarget == nil { Text("Favorites").tag("") }
+                    ForEach(model.visibleCollections.filter { !$0.isSmartCollection }) { Text($0.name).tag($0.id) }
+                }
+            } footer: {
+                Text("Where the Save button puts wallpapers.")
+            }
+            if !model.settings.nsfwHidden {
+                Section {
+                    Toggle(isOn: settingBinding(model, \.nsfwMode)) {
+                        VStack(alignment: .leading) {
+                            Text("NSFW")
+                            Text("Enable adult content").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .disabled(model.settings.stealthActive)
+                } footer: {
+                    if model.settings.stealthActive { Text("Stealth mode is on, so NSFW stays off until you switch it off.") }
+                }
+            }
+            Section {
+                Toggle(isOn: settingBinding(model, \.forYouEnabled)) {
+                    VStack(alignment: .leading) {
+                        Text("For you")
+                        Text("Order the feed by what you save, set and skip, favouring sharp images").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Button("Forget what Discover has learned", role: .destructive) {
+                    model.updateState { $0.learnedWeights = [:] }
+                    model.showToast("Learned taste reset")
+                }
+                .disabled(model.state.learnedWeights.isEmpty)
+            }
+            Section("Min resolution") {
+                Picker("Min resolution", selection: settingBinding(model, \.filters.minResolution)) {
+                    ForEach(MinResolution.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                .labelsHidden()
+            }
+            Section {
+                FlowLayout(spacing: 8) {
+                    ForEach(AspectRatio.allCases, id: \.self) { r in
+                        let on = model.settings.filters.aspectRatio == r
+                        Button(r.label) { model.updateSettings { $0.filters.aspectRatio = r } }
+                            .font(.subheadline)
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .background(on ? Color.rotatoAccent.opacity(0.25) : .clear, in: Capsule())
+                            .overlay(Capsule().stroke(on ? Color.rotatoAccent : .secondary.opacity(0.4)))
+                            .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("Aspect ratio")
+            } footer: {
+                Text("Block tags from a post's tag menu (Rank tag → Never) or in Content & Privacy.")
+            }
+        }
+        .navigationTitle("Discover Settings")
+        .inlineTitle()
     }
 }
 

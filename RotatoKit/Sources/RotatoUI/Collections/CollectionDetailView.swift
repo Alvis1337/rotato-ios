@@ -260,16 +260,7 @@ struct CollectionDetailView: View {
     private func fill(_ c: WallpaperCollection, tags: String, count: Int, pluginId: String?, instanceId: String?) async {
         fillRunning = true
         defer { fillRunning = false }
-        let before = Set(model.entries(in: c.id).map(\.id))
-        let db = model.db, listId = c.id
-        let added = await Task.detached {
-            await CollectionFiller(db: db).fill(listId: listId, tags: tags, count: count, pluginId: pluginId, instanceId: instanceId)
-        }.value
-        model.afterCollectionsChange()
-        lastFill = Set(model.entries(in: c.id).map(\.id)).subtracting(before)
-        model.showToast(added == 0 ? "No new images found. Try different tags or sources."
-                        : added < count ? "Added \(added) of \(count). That's all the sources had."
-                        : "Added \(added) to \(c.name)")
+        lastFill = await model.fill(c, tags: tags, count: count, pluginId: pluginId, instanceId: instanceId)
     }
 
     private func importPhotos(_ items: [PhotosPickerItem], into c: WallpaperCollection) {
@@ -327,7 +318,7 @@ struct EntryTile: View {
             .aspectRatio(2.0 / 3.0, contentMode: .fit)
             .overlay {
                 RemoteImage(entry.sampleUrl.ifBlank(entry.thumbUrl), preview: entry.thumbUrl, maxPixel: 400)
-                    .nsfwBlur(entry.isNsfw, exempt: exemptBlur)
+                    .nsfwBlur(entry.isNsfw, key: "\(entry.source):\(entry.sourceId)", exempt: exemptBlur)
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(alignment: .bottomLeading) {

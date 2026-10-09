@@ -144,10 +144,40 @@ public final class AppModel {
         }
     }
 
-    /// Saves to Favorites (created on first use).
+    /// The collection the Save button uses: the "Save to list" choice, else Favorites.
+    public var saveTarget: WallpaperCollection? {
+        visibleCollections.first { $0.id == settings.saveToListId } ?? visibleCollections.first { $0.name == "Favorites" }
+    }
+
+    /// Saves to the "Save to list" collection (Favorites, created on first use, when none is set).
     public func quickSave(_ wp: Wallpaper) {
-        guard let fav = collectionsRepo.findOrCreate(name: "Favorites") else { return }
-        save(wp, to: fav.id)
+        guard let target = saveTarget ?? collectionsRepo.findOrCreate(name: "Favorites") else { return }
+        if savedListIds[wp.key]?.contains(target.id) == true {
+            collectionsRepo.remove(wp, from: target.id)
+            afterCollectionsChange()
+            showToast("Removed from \(target.name)")
+        } else {
+            save(wp, to: target.id)
+        }
+    }
+
+    // MARK: Stealth
+
+    /// Switches stealth mode: rotation only from the stealth collection, NSFW forced off.
+    public func setStealth(_ on: Bool) {
+        updateSettings { $0.stealthActive = on && !$0.stealthCollectionId.isEmpty }
+        if on && settings.stealthCollectionId.isEmpty { showToast("Pick a stealth collection in NSFW & Privacy first") }
+    }
+
+    /// The per-source NSFW override, cycling inherit → on → off like the Android chips.
+    public func cycleSourceNsfw(_ s: SourceConfig) {
+        modifySource(s) { src in
+            switch src.nsfwEnabled {
+            case nil: src.nsfwEnabled = true
+            case true?: src.nsfwEnabled = false
+            case false?: src.nsfwEnabled = nil
+            }
+        }
     }
 
     public func modifyCollection(_ id: String, _ change: (inout WallpaperCollection) -> Void) {

@@ -29,7 +29,7 @@ public struct SettingsScreen: View {
                         row("Rotation & Wallpaper", "Order, framing, effects, auto-pause", "photo.on.rectangle", .blue)
                     }
                     NavigationLink { ContentSettingsView() } label: {
-                        row("Content & Privacy", "Content filter, NSFW, blocked tags", "shield", .red)
+                        row("Content & Privacy", "Content filter, stealth collection", "shield", .red)
                     }
                     NavigationLink { DiscoverSourcesView() } label: {
                         row("Discover & Sources", "Batch size, filters, \(model.enabledSources.count) sources on", "safari", .purple)
@@ -160,21 +160,46 @@ struct ContentSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("Content filter", isOn: settingBinding(model, \.nsfwHidden))
-            } footer: {
-                Text("Hides every NSFW feature, NSFW images and locked collections until you turn it off. Your other settings are kept.")
+                Toggle(isOn: settingBinding(model, \.nsfwHidden)) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Hide NSFW features")
+                        Text(model.settings.nsfwHidden
+                             ? "On: NSFW toggles, NSFW images, and locked collections are hidden everywhere. Turn this off to bring them back exactly as they were."
+                             : "Hides NSFW toggles, NSFW images, and locked collections throughout the app until you turn it off here")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Content filter")
             }
 
-            if !model.settings.nsfwHidden {
-                Section {
-                    Toggle("NSFW mode", isOn: settingBinding(model, \.nsfwMode))
-                    Toggle("Blur NSFW images", isOn: settingBinding(model, \.nsfwBlurEnabled))
-                    Toggle("Keep NSFW off the lock screen", isOn: settingBinding(model, \.nsfwHomeOnly))
-                } header: {
-                    Text("NSFW")
-                } footer: {
-                    Text("NSFW mode asks sources for explicit posts only. Sources can opt out individually in Sources. Blurred images show when tapped.")
+            Section {
+                if !model.settings.nsfwHidden {
+                    Toggle(isOn: settingBinding(model, \.nsfwBlurEnabled)) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Blur NSFW previews")
+                            Text("Blur explicit images and videos in grids until tapped. Also a safety net if one slips through with NSFW mode off.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    Toggle(isOn: settingBinding(model, \.nsfwHomeOnly)) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("NSFW → home screen only")
+                            Text("Explicit wallpapers only go to the home screen, so the lock screen stays clean.")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
                 }
+                Picker("Stealth collection", selection: settingBinding(model, \.stealthCollectionId)) {
+                    Text("Not set").tag("")
+                    ForEach(model.collections.filter { !model.settings.nsfwHidden || !$0.isLocked }) { Text($0.name).tag($0.id) }
+                }
+                Toggle("Stealth mode", isOn: Binding(get: { model.settings.stealthActive }, set: { model.setStealth($0) }))
+                    .disabled(model.settings.stealthCollectionId.isEmpty)
+            } header: {
+                Text(model.settings.nsfwHidden ? "Privacy" : "NSFW")
+            } footer: {
+                Text("Stealth mode switches rotation entirely to the stealth collection and forces NSFW off until you switch it back. Add the Stealth Mode control to Control Center (iOS 18) to flip it quickly.")
             }
 
             Section {
@@ -204,7 +229,7 @@ struct ContentSettingsView: View {
                 .disabled(model.state.blockedUrls.isEmpty)
             }
         }
-        .navigationTitle("Content & Privacy")
+        .navigationTitle(model.settings.nsfwHidden ? "Content & Privacy" : "NSFW & Privacy")
         .inlineTitle()
     }
 

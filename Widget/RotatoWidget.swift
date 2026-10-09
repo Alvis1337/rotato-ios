@@ -92,7 +92,33 @@ struct CurrentWallpaperWidget: Widget {
     }
 }
 
+/// Stealth mode from Control Center or the Lock Screen (the Quick Settings tile on Android).
+@available(iOS 18.0, *)
+struct StealthControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "com.chrisalvis.rotato.stealth", provider: StealthValue()) { isOn in
+            ControlWidgetToggle("Stealth Mode", isOn: isOn, action: SetStealthModeIntent()) { on in
+                Label(on ? "On" : "Off", systemImage: on ? "eye.slash.fill" : "eye")
+            }
+        }
+        .displayName("Stealth Mode")
+        .description("Rotate only your stealth collection, with NSFW off.")
+    }
+}
+
+@available(iOS 18.0, *)
+struct StealthValue: ControlValueProvider {
+    var previewValue: Bool { false }
+
+    func currentValue() async throws -> Bool {
+        RotatoDatabase.shared.read(DataFiles.settings).stealthActive
+    }
+}
+
 @main
 struct RotatoWidgets: WidgetBundle {
-    var body: some Widget { CurrentWallpaperWidget() }
+    var body: some Widget {
+        CurrentWallpaperWidget()
+        if #available(iOS 18.0, *) { StealthControl() }
+    }
 }
