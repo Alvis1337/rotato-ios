@@ -20,12 +20,30 @@ struct RotatoPreviewApp: App {
     }
 }
 
+/// Launch options for scripted runs: ROTATO_AUTOSETUP=1 skips first-run setup with the default
+/// sources, ROTATO_RESTORE=<backup.json> restores a backup first (Android backups work too), and
+/// ROTATO_TAB=discover|library|collections|settings opens that tab.
+private let env = ProcessInfo.processInfo.environment
+
 private struct PreviewShell: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
 
+    init() {
+        if let path = env["ROTATO_RESTORE"], FileManager.default.fileExists(atPath: path) {
+            let summary = (try? BackupService.restore(from: URL(fileURLWithPath: path))) ?? "Restore failed"
+            print(summary)
+            AppModel.shared.catalog.installAllBundled()
+            AppModel.shared.updateSettings { $0.setupDone = true }
+            AppModel.shared.afterCollectionsChange()
+        }
+        if env["ROTATO_AUTOSETUP"] == "1", !AppModel.shared.settings.setupDone {
+            AppModel.shared.completeSetup(enable: ["SAFEBOORU", "KONACHAN", "ZEROCHAN", "WALLHAVEN"])
+        }
+    }
+
     var body: some View {
-        RotatoRootView()
+        RotatoRootView(initialTab: env["ROTATO_TAB"].flatMap(RootTab.init) ?? .discover)
             .onAppear {
                 model.openURL = { openURL($0) }
                 model.observeExternalChanges()

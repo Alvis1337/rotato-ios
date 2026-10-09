@@ -36,7 +36,7 @@ public enum ThemeMode: String, Codable, CaseIterable, Sendable {
     case SYSTEM, LIGHT, DARK
 
     public var label: String {
-        switch self { case .SYSTEM: "System"; case .LIGHT: "Light"; case .DARK: "Dark" }
+        switch self { case .SYSTEM: "Follow system"; case .LIGHT: "Light"; case .DARK: "Dark" }
     }
 }
 

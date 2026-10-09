@@ -1,18 +1,16 @@
 import RotatoKit
 import SwiftUI
 
-/// Discover (BrainrotScreen on Android): a full-screen swipe feed from the enabled sources, or a
-/// grid. The dock holds Save, Set, Skip, Details and More.
+/// Discover (BrainrotScreen on Android): a masonry grid (or compact square grid) of posts from
+/// the enabled sources, with source chips to switch sources on and off. Tapping a post opens
+/// the full-screen viewer; search and Discover settings float at the bottom.
 public struct DiscoverScreen: View {
     @Environment(AppModel.self) private var model
     @State private var feed = DiscoverModel()
-    @AppStorage("discoverGrid") private var gridMode = false
-    @State private var position: Int? = 0
+    @AppStorage("discoverCompactGrid") private var compact = false
     @State private var searching = false
-    @State private var details: Wallpaper?
-    @State private var saving: Wallpaper?
+    @State private var showSettings = false
     @State private var viewerStart: ViewerStart?
-    @State private var handsFree = false
     @State private var showHealth = false
     private let searchRequest = DiscoverSearchRequest.shared
 
@@ -20,121 +18,231 @@ public struct DiscoverScreen: View {
 
     public var body: some View {
         NavigationStack {
-            ZStack {
-                if gridMode {
-                    grid
-                } else {
-                    Color.black.ignoresSafeArea()
-                    pager
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        header.id("top")
+                        sourceChips
+                        if compact { squareGrid } else { masonry }
+                        if feed.loadingMore { ProgressView().frame(maxWidth: .infinity).padding() }
+                    }
+                    .padding(.bottom, 90)
                 }
-                stateOverlay
+                .refreshable { feed.reset() }
+                .overlay { stateOverlay }
+                .overlay(alignment: .bottomTrailing) { floatingButtons(proxy) }
             }
-            .navigationTitle(feed.query.isEmpty ? "Discover" : feed.query.replacingOccurrences(of: "_", with: " "))
-            .inlineTitle()
-            .toolbar { toolbar }
-            .navigationBarBackgroundHidden(!gridMode)
+            .navigationDestination(for: String.self) { _ in SourcesScreen() }
             .sheet(isPresented: $searching) {
-                DiscoverSearchSheet(current: feed.query, suggestions: suggestions) { q in
-                    position = 0
-                    feed.reset(query: q)
+                DiscoverSearchSheet(current: feed.query, suggestions: suggestions) { q in feed.reset(query: q) }
+            }
+            .sheet(isPresented: $showSettings) {
+                NavigationStack {
+                    DiscoverSettingsView()
+                        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showSettings = false } } }
                 }
             }
-            .sheet(item: $details) { wp in
-                WallpaperDetailsSheet(wallpaper: wp) { tag in search(tag) }
-            }
-            .sheet(item: $saving) { wp in SaveToCollectionsSheet(wallpaper: wp) }
             .sheet(isPresented: $showHealth) { NavigationStack { SourceHealthView(health: feed.health) } }
             .fullScreen(item: $viewerStart) { start in
                 WallpaperViewer(items: feed.items, startIndex: start.index)
             }
-            .navigationDestination(for: String.self) { _ in SourcesScreen() }
+            .toolbar(.hidden, for: .automatic)
         }
         .onAppear {
             feed.startIfNeeded()
             consumeSearchRequest()
         }
         .onChange(of: searchRequest.query) { _, _ in consumeSearchRequest() }
-        .onChange(of: feedSignature) { _, _ in
-            position = 0
-            feed.reset()
+        .onChange(of: feedSignature) { _, _ in feed.reset() }
+        #if DEBUG
+        // Scripted screenshots: ROTATO_OPEN_VIEWER=1 opens the first post (2 expands its card).
+        .onChange(of: feed.items.count) { old, new in
+            if old == 0, new > 0, ProcessInfo.processInfo.environment["ROTATO_OPEN_VIEWER"] != nil {
+                viewerStart = ViewerStart(index: 0)
+            }
         }
-        .task(id: handsFree) {
-            // Hands-free: move on every few seconds, like a slideshow.
-            while handsFree && !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 6_000_000_000)
-                guard handsFree, !gridMode else { continue }
-                withAnimation { position = min((position ?? 0) + 1, max(feed.items.count - 1, 0)) }
+        #endif
+    }
+
+    // MARK: Header
+
+    private var header: some View {
+        HStack {
+            Text("Discover").font(.title.bold())
+            Spacer()
+            Button { feed.reset() } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.horizontal, 14).padding(.vertical, 8)
+                    .background(Color.rotatoAccent.opacity(0.2), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Color.rotatoAccent)
+            Button { withAnimation { compact.toggle() } } label: {
+                Image(systemName: compact ? "rectangle.split.3x1" : "square.grid.2x2")
+                    .font(.title3)
+                    .frame(width: 40, height: 40)
+            }
+            .buttonStyle(.plain)
+            Menu {
+                Button { showHealth = true } label: { Label("Source health", systemImage: "stethoscope") }
+                NavigationLink(value: "sources") { Label("Manage sources", systemImage: "server.rack") }
+            } label: {
+                Image(systemName: "ellipsis").font(.title3).frame(width: 32, height: 40)
+            }
+            .dockMenuStyle()
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    /// Every configured source as a chip; tap to switch it on or off for Discover.
+    private var sourceChips: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Sources", systemImage: "line.3.horizontal.decrease")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(chipSources) { s in
+                        let m = model.manifest(for: s)
+                        let missingKey = (m?.requiresCredentials ?? false) && s.apiKey.isBlank
+                        Button {
+                            model.modifySource(s) { $0.enabled.toggle() }
+                        } label: {
+                            HStack(spacing: 4) {
+                                if s.enabled { Image(systemName: "checkmark").font(.caption2.bold()) }
+                                Text(s.instanceId.isEmpty ? (m?.name ?? s.pluginId.capitalized) : "r/\(s.instanceId)")
+                                if missingKey { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red) }
+                                else if (m?.needsApiKey ?? false) && !s.apiKey.isBlank { Image(systemName: "key.fill").opacity(0.5) }
+                            }
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 12).padding(.vertical, 7)
+                            .background(s.enabled ? Color.rotatoAccent.opacity(0.22) : .clear, in: Capsule())
+                            .overlay(Capsule().stroke(s.enabled ? Color.rotatoAccent.opacity(0.6) : .secondary.opacity(0.4)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    NavigationLink(value: "sources") {
+                        Image(systemName: "plus").font(.caption.bold())
+                            .frame(width: 30, height: 30)
+                            .overlay(Circle().stroke(.secondary.opacity(0.4)))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal)
             }
         }
     }
 
-    // MARK: Feed
-
-    private var pager: some View {
-        ScrollView(.vertical) {
-            LazyVStack(spacing: 0) {
-                ForEach(Array(feed.items.enumerated()), id: \.element.key) { i, wp in
-                    FeedPage(wallpaper: wp, isCurrent: position == i)
-                        .containerRelativeFrame([.horizontal, .vertical])
-                        .id(i)
-                        .onAppear { feed.onAppear(index: i) }
-                        .onTapGesture(count: 2) { save(wp) }
-                }
-                if feed.loadingMore {
-                    ProgressView().tint(.white).containerRelativeFrame([.horizontal, .vertical])
-                }
-            }
-            .scrollTargetLayout()
-        }
-        .scrollTargetBehavior(.paging)
-        .scrollPosition(id: $position)
-        .scrollIndicators(.hidden)
-        .ignoresSafeArea()
-        .refreshable { feed.reset() }
-        .overlay(alignment: .bottom) {
-            if let i = position, feed.items.indices.contains(i) {
-                let wp = feed.items[i]
-                VStack(spacing: 10) {
-                    FeedCaption(wallpaper: wp)
-                    WallpaperActionsDock(
-                        wallpaper: wp,
-                        onDetails: { details = wp },
-                        onPickCollections: { saving = wp },
-                        onSkip: { skip(wp, at: i) },
-                        onBlock: { block(wp) }
-                    )
-                }
-                .padding(.bottom, 12)
-            }
+    /// Sources with a row, hiding adult-only ones under the content filter.
+    private var chipSources: [SourceConfig] {
+        model.sources.filter { s in
+            guard let m = model.manifest(for: s) else { return false }
+            if m.isMultiInstance && s.instanceId.isEmpty { return false }
+            return !(model.settings.nsfwHidden && m.adultOnly)
         }
     }
 
-    private var grid: some View {
-        ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 6)], spacing: 6) {
-                ForEach(Array(feed.items.enumerated()), id: \.element.key) { i, wp in
-                    GridTile(wallpaper: wp, dataSaver: model.settings.discoverDataSaver, saved: model.isSaved(wp))
-                        .onTapGesture { viewerStart = ViewerStart(index: i) }
-                        .onAppear { feed.onAppear(index: i) }
-                        .contextMenu { gridMenu(wp) }
+    // MARK: Grids
+
+    private var masonry: some View {
+        let columns = 3
+        var heights = Array(repeating: 0.0, count: columns)
+        var buckets = Array(repeating: [(Int, Wallpaper)](), count: columns)
+        for (i, wp) in feed.items.enumerated() {
+            let c = heights.firstIndex(of: heights.min()!)!
+            buckets[c].append((i, wp))
+            heights[c] += 1 / tileRatio(wp)
+        }
+        return HStack(alignment: .top, spacing: 6) {
+            ForEach(0..<columns, id: \.self) { c in
+                LazyVStack(spacing: 6) {
+                    ForEach(buckets[c], id: \.1.key) { i, wp in tile(wp, index: i, ratio: tileRatio(wp)) }
                 }
             }
-            .padding(6)
-            if feed.loadingMore { ProgressView().padding() }
         }
-        .refreshable { feed.reset() }
+        .padding(.horizontal, 8)
+    }
+
+    private var squareGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
+            ForEach(Array(feed.items.enumerated()), id: \.element.key) { i, wp in tile(wp, index: i, ratio: 1) }
+        }
+        .padding(.horizontal, 8)
+    }
+
+    private func tileRatio(_ wp: Wallpaper) -> Double {
+        let r = wp.dimensions.map { Double($0.width) / Double($0.height) } ?? (2.0 / 3.0)
+        return min(max(r, 0.5), 1.4)
+    }
+
+    private func tile(_ wp: Wallpaper, index i: Int, ratio: Double) -> some View {
+        GridTile(wallpaper: wp, ratio: ratio, dataSaver: model.settings.discoverDataSaver, saved: model.isSaved(wp))
+            .onTapGesture { viewerStart = ViewerStart(index: i) }
+            .onAppear { feed.onAppear(index: i) }
+            .contextMenu { gridMenu(wp) }
     }
 
     @ViewBuilder
     private func gridMenu(_ wp: Wallpaper) -> some View {
-        Button { model.quickSave(wp) } label: { Label("Save to Favorites", systemImage: "star") }
-        Button { saving = wp } label: { Label("Save to collections…", systemImage: "bookmark") }
-        Button { Task { await model.setNow(wp) } } label: { Label("Set now", systemImage: "iphone") }
+        Button { model.quickSave(wp) } label: { Label("Save to Favorites", systemImage: "bookmark") }
+        Button { Task { await model.setNow(wp) } } label: { Label("Set now", systemImage: "photo.on.rectangle") }
             .disabled(wp.isVideo)
-        Button { details = wp } label: { Label("Details", systemImage: "info.circle") }
+        Button {
+            Task { if await model.addToPool(wp) != nil { model.showToast("Added to Library") } }
+        } label: {
+            Label("Add to Library", systemImage: "arrow.down.to.line")
+        }
+        .disabled(wp.isVideo)
         Divider()
         Button { feed.skip(wp); feed.remove(wp) } label: { Label("Not for me", systemImage: "hand.thumbsdown") }
-        Button(role: .destructive) { block(wp) } label: { Label("Block", systemImage: "hand.raised") }
+        Button(role: .destructive) {
+            model.block(wp)
+            feed.remove(wp)
+            model.showToast("Blocked")
+        } label: {
+            Label("Block", systemImage: "hand.raised")
+        }
+    }
+
+    // MARK: Overlays
+
+    private func floatingButtons(_ proxy: ScrollViewProxy) -> some View {
+        HStack(spacing: 10) {
+            if !feed.query.isEmpty {
+                Button { searching = true } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                        Text(feed.query.replacingOccurrences(of: "_", with: " ")).lineLimit(1)
+                        Button { feed.reset(query: "") } label: { Image(systemName: "xmark.circle.fill") }
+                            .buttonStyle(.plain)
+                    }
+                    .font(.subheadline)
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .background(.regularMaterial, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            Button { searching = true } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(width: 46, height: 46)
+                    .background(.regularMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            Button { showSettings = true } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 58, height: 58)
+                    .background(Color.rotatoAccent, in: RoundedRectangle(cornerRadius: 18))
+                    .shadow(radius: 6, y: 2)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(16)
     }
 
     @ViewBuilder
@@ -145,68 +253,31 @@ public struct DiscoverScreen: View {
                     ProgressView().controlSize(.large)
                     Text("Finding wallpapers…").foregroundStyle(.secondary)
                 }
-                .tint(gridMode ? nil : .white)
-                .foregroundStyle(gridMode ? Color.primary : .white)
             } else if model.enabledSources.isEmpty || feed.noResults == .noSources {
                 ContentUnavailableView {
                     Label("No sources on", systemImage: "server.rack")
                 } description: {
-                    Text("Turn on a source to fill Discover. Sources without a key, like Safebooru or Wallhaven, work straight away.")
+                    Text("Tap a source above to turn it on. Safebooru, Konachan and Wallhaven work without a key.")
                 } actions: {
-                    NavigationLink("Choose sources", value: "sources").buttonStyle(.borderedProminent)
+                    NavigationLink("Manage sources", value: "sources").buttonStyle(.borderedProminent)
                 }
-                .environment(\.colorScheme, gridMode ? .light : .dark)
             } else {
                 ContentUnavailableView {
                     Label(feed.noResults == .searchEmpty ? "Nothing for \"\(feed.query)\"" : "You've seen everything",
                           systemImage: "sparkle.magnifyingglass")
                 } description: {
                     Text(feed.noResults == .searchEmpty
-                         ? "Check the spelling as the sites write it (like hatsune_miku), or loosen the filters in Settings → Discover."
+                         ? "Check the spelling as the sites write it (like hatsune_miku), or loosen the filters."
                          : "Your sources ran out of new posts for these filters.")
                 } actions: {
                     Button(feed.query.isEmpty ? "Start over" : "Clear search") { feed.reset(query: "") }
                         .buttonStyle(.borderedProminent)
                 }
-                .environment(\.colorScheme, gridMode ? .light : .dark)
             }
         }
     }
 
-    @ToolbarContentBuilder
-    private var toolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .leadingBar) {
-            Button { gridMode.toggle() } label: {
-                Image(systemName: gridMode ? "rectangle.portrait" : "square.grid.2x2")
-            }
-            if !feed.undoStack.isEmpty {
-                Button {
-                    if let at = feed.undo() { withAnimation { position = at } }
-                } label: {
-                    Image(systemName: "arrow.uturn.backward")
-                }
-            }
-        }
-        ToolbarItemGroup(placement: .trailingBar) {
-            Button { searching = true } label: { Image(systemName: "magnifyingglass") }
-            Menu {
-                if !feed.query.isEmpty {
-                    Button { feed.reset(query: "") } label: { Label("Clear search", systemImage: "xmark.circle") }
-                }
-                Button { feed.reset() } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                Toggle(isOn: $handsFree) { Label("Hands-free", systemImage: "play.circle") }
-                    .disabled(gridMode)
-                Toggle(isOn: settingBinding(model, \.forYouEnabled)) { Label("For you", systemImage: "heart.text.square") }
-                Divider()
-                Button { showHealth = true } label: { Label("Source health", systemImage: "stethoscope") }
-                NavigationLink(value: "sources") { Label("Sources", systemImage: "server.rack") }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-        }
-    }
-
-    // MARK: Actions
+    // MARK: Helpers
 
     /// Changes that make the current feed wrong: NSFW, filters, the set of enabled sources.
     private var feedSignature: String {
@@ -224,105 +295,41 @@ public struct DiscoverScreen: View {
     private func consumeSearchRequest() {
         guard let q = searchRequest.query else { return }
         searchRequest.query = nil
-        search(q)
-    }
-
-    private func search(_ q: String) {
-        position = 0
         feed.reset(query: q)
     }
-
-    private func save(_ wp: Wallpaper) {
-        Haptics.success()
-        model.quickSave(wp)
-    }
-
-    private func skip(_ wp: Wallpaper, at i: Int) {
-        feed.skip(wp)
-        withAnimation { position = min(i + 1, max(feed.items.count - 1, 0)) }
-    }
-
-    private func block(_ wp: Wallpaper) {
-        model.block(wp)
-        feed.remove(wp)
-        model.showToast("Blocked. Undo brings it back to the feed.")
-    }
 }
 
-/// One full-screen post: the image fitted over a blurred fill of itself.
-struct FeedPage: View {
-    @Environment(AppModel.self) private var model
-    let wallpaper: Wallpaper
-    let isCurrent: Bool
-
-    var body: some View {
-        let url = model.settings.discoverDataSaver ? wallpaper.gridUrl : wallpaper.sampleUrl.ifBlank(wallpaper.fullUrl)
-        ZStack {
-            RemoteImage(wallpaper.dataSaverUrl, maxPixel: 200)
-                .blur(radius: 40, opaque: true)
-                .overlay(Color.black.opacity(0.35))
-            Group {
-                if wallpaper.isVideo, model.settings.videoPreviewMode == .AUTOPLAY, let u = URL(string: wallpaper.fullUrl) {
-                    LoopingVideo(url: u, playing: isCurrent, muted: true)
-                } else {
-                    RemoteImage(MediaType.isVideoURL(url) ? wallpaper.thumbUrl : url, preview: wallpaper.lowResPreviewUrl, maxPixel: 1800, contentMode: .fit)
-                        .overlay {
-                            if wallpaper.isVideo {
-                                Image(systemName: "play.circle.fill").font(.system(size: 54)).foregroundStyle(.white.opacity(0.85))
-                            }
-                        }
-                }
-            }
-            .padding(.vertical, 60)
-        }
-        .clipped()
-        .nsfwBlur(wallpaper.isNsfw)
-        .contentShape(Rectangle())
-    }
-}
-
-/// Source and top tags above the dock.
-struct FeedCaption: View {
-    let wallpaper: Wallpaper
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(wallpaper.source.capitalized).fontWeight(.semibold)
-            if let d = wallpaper.dimensions { Text("· \(d.width)×\(d.height)") }
-            if wallpaper.isNsfw { Text("· NSFW").foregroundStyle(.red) }
-        }
-        .font(.caption)
-        .foregroundStyle(.white.opacity(0.9))
-        .shadow(radius: 3)
-    }
-}
-
-/// A grid tile sized to the post's aspect ratio (within limits).
+/// A grid tile with the source badge (bottom left) and saved/video marks.
 struct GridTile: View {
     let wallpaper: Wallpaper
+    var ratio: Double
     let dataSaver: Bool
     let saved: Bool
 
     var body: some View {
-        let ratio = wallpaper.dimensions.map { Double($0.width) / Double($0.height) } ?? (2.0 / 3.0)
         Color.clear
-            .aspectRatio(min(max(ratio, 0.5), 1.4), contentMode: .fit)
+            .aspectRatio(ratio, contentMode: .fit)
             .overlay {
                 RemoteImage(dataSaver ? wallpaper.dataSaverUrl : wallpaper.gridUrl, preview: wallpaper.lowResPreviewUrl, maxPixel: 600)
                     .nsfwBlur(wallpaper.isNsfw)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(alignment: .topTrailing) {
-                if saved {
-                    Image(systemName: "star.fill").font(.caption).foregroundStyle(.yellow).padding(6).shadow(radius: 2)
-                }
-            }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(alignment: .bottomLeading) {
-                if wallpaper.isVideo {
-                    Image(systemName: "play.fill").font(.caption).foregroundStyle(.white).padding(6).shadow(radius: 2)
-                }
+                InfoPill(text: SourceStyle.name(wallpaper.source), color: SourceStyle.color(wallpaper.source).opacity(0.92), bold: true)
+                    .scaleEffect(0.85, anchor: .bottomLeading)
+                    .padding(5)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(alignment: .topTrailing) {
+                HStack(spacing: 4) {
+                    if wallpaper.isVideo { Image(systemName: "play.fill") }
+                    if saved { Image(systemName: "bookmark.fill").foregroundStyle(Color.rotatoAccent) }
+                }
+                .font(.caption)
+                .foregroundStyle(.white)
+                .shadow(radius: 2)
+                .padding(6)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 

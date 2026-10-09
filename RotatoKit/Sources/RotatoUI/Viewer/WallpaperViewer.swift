@@ -12,8 +12,12 @@ public struct WallpaperViewer: View {
     let collectionId: String?
     @State private var index: Int
     @State private var chrome = true
-    @State private var details: Wallpaper?
-    @State private var saving: Wallpaper?
+    #if DEBUG
+    @State private var expanded = ProcessInfo.processInfo.environment["ROTATO_OPEN_VIEWER"] == "2"
+    #else
+    @State private var expanded = false
+    #endif
+    @State private var preview: Wallpaper?
 
     public init(items: [Wallpaper], startIndex: Int, collectionId: String? = nil) {
         self.items = items
@@ -32,63 +36,73 @@ public struct WallpaperViewer: View {
             }
             .pagingTabs()
             .ignoresSafeArea()
-            .onTapGesture { withAnimation(.easeInOut(duration: 0.2)) { chrome.toggle() } }
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if expanded { expanded = false } else { chrome.toggle() }
+                }
+            }
 
             if chrome, items.indices.contains(index) {
-                VStack {
-                    topBar
+                let wp = items[index]
+                VStack(alignment: .leading, spacing: 0) {
+                    topBar(wp)
                     Spacer()
-                    WallpaperActionsDock(
-                        wallpaper: items[index],
-                        onDetails: { details = items[index] },
-                        onPickCollections: { saving = items[index] },
+                    ViewerCard(
+                        wallpaper: wp,
+                        position: position,
+                        expanded: $expanded,
+                        onSkip: skip,
+                        onSearchTag: { tag in
+                            DiscoverSearchRequest.shared.send(tag)
+                            dismiss()
+                        },
+                        onPreview: { preview = wp },
                         extra: collectionId.map { listId in
                             AnyView(Button(role: .destructive) {
                                 removeFromCollection(listId)
                             } label: {
-                                Label("Remove from collection", systemImage: "trash")
-                            })
+                                Label("Remove from this collection", systemImage: "trash")
+                                    .font(.subheadline.weight(.medium))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .overlay(Capsule().stroke(.red.opacity(0.6)))
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.red))
                         }
                     )
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 6)
                 }
                 .transition(.opacity)
             }
         }
         .statusBarHiddenCompat(!chrome)
         .preferredColorScheme(.dark)
-        .sheet(item: $details) { wp in
-            WallpaperDetailsSheet(wallpaper: wp) { tag in
-                DiscoverSearchRequest.shared.send(tag)
-                dismiss()
-            }
+        .sheet(item: $preview) { wp in ScreenPreview(wallpaper: wp) }
+    }
+
+    private var position: String? { items.count > 1 ? "\(index + 1) / \(items.count)" : nil }
+
+    private func skip() {
+        guard items.indices.contains(index) else { return }
+        LearnedTaste.record(items[index].tags, .skipped, db: model.db)
+        if index < items.count - 1 { withAnimation { index += 1 } } else { dismiss() }
+    }
+
+    private func topBar(_ wp: Wallpaper) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            ImageInfoPills(wallpaper: wp, position: position)
+            Spacer(minLength: 0)
+            Button { dismiss() } label: { circleIcon("xmark") }
+                .buttonStyle(.plain)
         }
-        .sheet(item: $saving) { wp in SaveToCollectionsSheet(wallpaper: wp) }
+        .padding(.horizontal, 14)
+        .padding(.top, 6)
     }
 
     private var blurExempt: Bool {
         collectionId.flatMap { id in model.collections.first { $0.id == id }?.blurExempt } ?? false
-    }
-
-    private var topBar: some View {
-        HStack {
-            Button { dismiss() } label: { circleIcon("xmark") }
-            Spacer()
-            if items.count > 1 {
-                Text("\(index + 1) of \(items.count)")
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12).padding(.vertical, 6)
-                    .background(.ultraThinMaterial, in: Capsule())
-            }
-            Spacer()
-            if let link = URL(string: items[index].shareLink), !items[index].shareLink.isEmpty {
-                ShareLink(item: link) { circleIcon("square.and.arrow.up") }
-            } else {
-                Color.clear.frame(width: 40, height: 40)
-            }
-        }
-        .padding(.horizontal)
     }
 
     private func removeFromCollection(_ listId: String) {

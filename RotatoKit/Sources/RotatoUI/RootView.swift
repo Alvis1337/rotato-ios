@@ -6,9 +6,11 @@ import SwiftUI
 public struct RotatoRootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.scenePhase) private var scenePhase
-    @State private var tab: RootTab = .discover
+    @State private var tab: RootTab
 
-    public init() {}
+    public init(initialTab: RootTab = .discover) {
+        _tab = State(initialValue: initialTab)
+    }
 
     public var body: some View {
         Group {
@@ -34,6 +36,7 @@ public struct RotatoRootView: View {
             }
         }
         .toastOverlay()
+        .tint(.rotatoAccent)
         .preferredColorScheme(model.settings.themeMode.colorScheme)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
@@ -47,7 +50,12 @@ public struct RotatoRootView: View {
     }
 }
 
-public enum RootTab: Hashable { case discover, library, collections, settings }
+public enum RootTab: String, Hashable { case discover, library, collections, settings }
+
+extension Color {
+    /// The icon's orange, so the app looks the same wherever the system accent differs.
+    public static let rotatoAccent = Color(red: 0.91, green: 0.33, blue: 0.12)
+}
 
 /// Lets other tabs hand Discover a search (e.g. tapping a tag in a collection).
 @MainActor

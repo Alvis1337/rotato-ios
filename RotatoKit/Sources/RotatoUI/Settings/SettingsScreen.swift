@@ -12,33 +12,30 @@ public struct SettingsScreen: View {
     public var body: some View {
         NavigationStack {
             List {
+                Section("Appearance") {
+                    Picker("Theme", selection: settingBinding(model, \.themeMode)) {
+                        ForEach(ThemeMode.allCases, id: \.self) { Text($0.label).tag($0) }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
                 Section {
                     NavigationLink {
                         ShortcutsSetupView()
                     } label: {
                         row("Shortcuts Setup", "Make rotation automatic", "arrow.triangle.2.circlepath", .orange)
                     }
-                }
-                Section {
                     NavigationLink { RotationSettingsView() } label: {
-                        row("Rotation & Wallpaper", "Order, framing, effects, night pause", "photo.on.rectangle", .blue)
+                        row("Rotation & Wallpaper", "Order, framing, effects, auto-pause", "photo.on.rectangle", .blue)
                     }
                     NavigationLink { ContentSettingsView() } label: {
-                        row("Content & Privacy", "NSFW, content filter, blocked tags", "eye.slash", .red)
+                        row("Content & Privacy", "Content filter, NSFW, blocked tags", "shield", .red)
                     }
-                    NavigationLink { DiscoverSettingsView() } label: {
-                        row("Discover", "Filters, For you, data saver", "sparkles", .purple)
+                    NavigationLink { DiscoverSourcesView() } label: {
+                        row("Discover & Sources", "Batch size, filters, \(model.enabledSources.count) sources on", "safari", .purple)
                     }
-                    NavigationLink { SourcesScreen() } label: {
-                        row("Sources", "\(model.enabledSources.count) enabled", "server.rack", .green)
-                    }
-                    NavigationLink { PluginStoreScreen() } label: {
-                        row("Plugin Store", "Install more sources", "shippingbox", .teal)
-                    }
-                }
-                Section {
                     NavigationLink { AboutDataView() } label: {
-                        row("About & Data", "Backup, cache, licences", "info.circle", .gray)
+                        row("About & Data", "Backup & restore, storage, about", "info.circle", .gray)
                     }
                 }
             }
@@ -219,13 +216,31 @@ struct ContentSettingsView: View {
     }
 }
 
-// MARK: - Discover
+// MARK: - Discover & sources
 
-struct DiscoverSettingsView: View {
+/// Discover's options with the sources and plugin store underneath, as on Android.
+struct DiscoverSourcesView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        DiscoverSettingsView(extra: AnyView(
+            Section("Sources") {
+                NavigationLink { SourcesScreen() } label: {
+                    LabeledContent("Manage sources", value: "\(model.enabledSources.count) on")
+                }
+                NavigationLink("Plugin store") { PluginStoreScreen() }
+            }
+        ))
+    }
+}
+
+struct DiscoverSettingsView: View {
+    @Environment(AppModel.self) private var model
+    var extra: AnyView?
+
+    var body: some View {
         Form {
+            if let extra { extra }
             Section {
                 Picker("Minimum resolution", selection: settingBinding(model, \.filters.minResolution)) {
                     ForEach(MinResolution.allCases, id: \.self) { Text($0.label).tag($0) }
@@ -290,12 +305,6 @@ struct AboutDataView: View {
 
     var body: some View {
         Form {
-            Section("Appearance") {
-                Picker("Theme", selection: settingBinding(model, \.themeMode)) {
-                    ForEach(ThemeMode.allCases, id: \.self) { Text($0.label).tag($0) }
-                }
-            }
-
             Section {
                 if let exportURL {
                     ShareLink(item: exportURL) { Label("Share backup file", systemImage: "square.and.arrow.up") }

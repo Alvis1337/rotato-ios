@@ -109,9 +109,14 @@ struct PoolViewer: View {
 struct ScreenPreview: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    let file: URL
+    /// A Library file, or a post from Discover / a collection (downloaded for the preview).
+    private let file: URL?
+    private let wallpaper: Wallpaper?
     @State private var home: CGImage?
     @State private var lock: CGImage?
+
+    init(file: URL) { self.file = file; wallpaper = nil }
+    init(wallpaper: Wallpaper) { file = nil; self.wallpaper = wallpaper }
 
     var body: some View {
         NavigationStack {
@@ -127,7 +132,7 @@ struct ScreenPreview: View {
             }
             .safeAreaInset(edge: .bottom) {
                 Button {
-                    model.setNow(file)
+                    if let file { model.setNow(file) } else if let wallpaper { Task { await model.setNow(wallpaper) } }
                     dismiss()
                 } label: {
                     Label("Set now", systemImage: "iphone").frame(maxWidth: .infinity)
@@ -173,9 +178,12 @@ struct ScreenPreview: View {
         // A quarter-size render is plenty for the preview and much faster.
         settings.filters.phoneScreenWidth = Int(full.width / 4)
         settings.filters.phoneScreenHeight = Int(full.height / 4)
-        let s = settings, f = file
+        var data: Data?
+        if file == nil, let wallpaper { data = await ImagePipeline.shared.cachedData(wallpaper.fullUrl) }
+        let s = settings, f = file, d = data
         let (h, l) = await Task.detached(priority: .userInitiated) { () -> (CGImage?, CGImage?) in
-            guard let src = ImageLoader.thumbnail(f, maxPixel: 1200) else { return (nil, nil) }
+            let loaded = f.flatMap { ImageLoader.thumbnail($0, maxPixel: 1200) } ?? d.flatMap { ImageLoader.thumbnail($0, maxPixel: 1200) }
+            guard let src = loaded else { return (nil, nil) }
             let size = WallpaperRenderer.screenSize(s)
             func make(_ screen: WallpaperScreen) -> CGImage {
                 let framed = WallpaperRenderer.frame(src, to: size, fit: s.wallpaperFit, screen: screen)
@@ -241,9 +249,7 @@ struct HistoryView: View {
                 ContentUnavailableView("No history yet", systemImage: "clock", description: Text("Wallpapers your shortcut sets appear here."))
             }
         }
-        .navigationTitle("History")
-        .inlineTitle()
-        .toolbar { ToolbarItem(placement: .trailingBar) { Button("Done") { dismiss() } } }
+
     }
 }
 
@@ -288,8 +294,6 @@ struct StatsView: View {
                 Text("Rotation problems")
             }
         }
-        .navigationTitle("Stats")
-        .inlineTitle()
-        .toolbar { ToolbarItem(placement: .trailingBar) { Button("Done") { dismiss() } } }
+
     }
 }

@@ -21,16 +21,14 @@ public struct CollectionsScreen: View {
         NavigationStack {
             ScrollView {
                 if model.lockedHiddenCount > 0 && !model.settings.nsfwHidden { lockedBanner }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 14)], spacing: 16) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: 3), spacing: 12) {
                     ForEach(shown) { list in
-                        NavigationLink(value: list.id) {
-                            CollectionCard(collection: list)
-                        }
-                        .buttonStyle(.plain)
-                        .contextMenu { menu(for: list) }
+                        CollectionCard(collection: list) { menu(for: list) }
+                            .contextMenu { menu(for: list) }
                     }
                 }
-                .padding()
+                .padding(.horizontal, 10)
+                .padding(.top, 6)
             }
             .overlay {
                 if model.visibleCollections.isEmpty {
@@ -130,31 +128,65 @@ public struct CollectionsScreen: View {
     }
 }
 
-/// A collection's cover, name and badges.
-struct CollectionCard: View {
+/// A collection's cover with its name, count and rotation link underneath, plus a rotation
+/// toggle and a menu (CollectionCard on Android).
+struct CollectionCard<Menu: View>: View {
     @Environment(AppModel.self) private var model
     let collection: WallpaperCollection
+    @ViewBuilder var menuItems: () -> Menu
 
     var body: some View {
         let entries = model.entries(in: collection.id)
-        VStack(alignment: .leading, spacing: 6) {
-            Color.clear
-                .aspectRatio(1, contentMode: .fit)
-                .overlay { cover(entries) }
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .overlay(alignment: .topTrailing) {
-                    HStack(spacing: 4) {
-                        if collection.isSmartCollection { badge("wand.and.stars") }
-                        if collection.isLocked { badge("lock.fill") }
-                        if collection.useAsRotation { badge("arrow.triangle.2.circlepath") }
+        VStack(alignment: .leading, spacing: 0) {
+            NavigationLink(value: collection.id) {
+                Color.clear
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay { cover(entries) }
+                    .clipped()
+                    .overlay(alignment: .topTrailing) {
+                        HStack(spacing: 4) {
+                            if collection.isSmartCollection { badge("wand.and.stars") }
+                            if collection.isLocked { badge("lock.fill") }
+                        }
+                        .padding(5)
                     }
-                    .padding(6)
+            }
+            .buttonStyle(.plain)
+            HStack(alignment: .top, spacing: 2) {
+                NavigationLink(value: collection.id) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(collection.name).font(.subheadline.weight(.semibold)).lineLimit(1)
+                        Text("\(entries.count) image\(entries.count == 1 ? "" : "s")").font(.caption2).foregroundStyle(.secondary)
+                        if collection.useAsRotation {
+                            Text("Linked to Library").font(.caption2).foregroundStyle(Color.rotatoAccent)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-            Text(collection.name).font(.headline).lineLimit(1)
-            Text("\(entries.count) wallpaper\(entries.count == 1 ? "" : "s")")
-                .font(.caption).foregroundStyle(.secondary)
+                .buttonStyle(.plain)
+                Button {
+                    model.modifyCollection(collection.id) { $0.useAsRotation.toggle() }
+                    model.showToast(collection.useAsRotation ? "Unlinked from Library" : "Linked to Library")
+                } label: {
+                    Image(systemName: collection.useAsRotation ? "photo.on.rectangle.angled.fill" : "photo.on.rectangle.angled")
+                        .font(.system(size: 13))
+                        .foregroundStyle(collection.useAsRotation ? Color.rotatoAccent : .secondary)
+                        .frame(width: 24, height: 26)
+                }
+                .buttonStyle(.plain)
+                SwiftUI.Menu { menuItems() } label: {
+                    Image(systemName: "ellipsis").rotationEffect(.degrees(90))
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18, height: 26)
+                }
+                .dockMenuStyle()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
         }
-        .contentShape(Rectangle())
+        .background(.background.secondary)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     @ViewBuilder
