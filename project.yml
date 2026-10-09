@@ -4,7 +4,6 @@ options:
   bundleIdPrefix: com.chrisalvis
   deploymentTarget:
     iOS: "17.0"
-  createIntermediateGroups: true
 
 settings:
   base:
@@ -35,8 +34,7 @@ targets:
     sources:
       - App
       # Built into the app itself so Shortcuts can find the actions.
-      - path: RotatoKit/Sources/RotatoIntents
-        group: Intents
+      - RotatoKit/Sources/RotatoIntents
     dependencies:
       - package: RotatoKit
         product: RotatoKit
@@ -74,8 +72,7 @@ targets:
     platform: iOS
     sources:
       - Widget
-      - path: RotatoKit/Sources/RotatoIntents
-        group: Intents
+      - RotatoKit/Sources/RotatoIntents
     dependencies:
       - package: RotatoKit
         product: RotatoKit
